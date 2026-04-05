@@ -1,0 +1,140 @@
+{
+  "info": {
+    "name": "Billo API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "Auth register (first user only)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"9876543210\",\n  \"pin\": \"4242\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "Auth login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"9876543210\",\n  \"pin\": \"4242\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Auth refresh",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"PASTE_REFRESH\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/refresh"
+      }
+    },
+    {
+      "name": "Dashboard summary",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/api/dashboard/summary"
+      }
+    },
+    {
+      "name": "Dealers list",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/api/dealers?q="
+      }
+    },
+    {
+      "name": "Products list",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/api/products"
+      }
+    },
+    {
+      "name": "Invoice preview",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dealerId\": \"DEALER_ID\",\n  \"gstRate\": 12,\n  \"items\": [\n    { \"productId\": \"PRODUCT_ID\", \"quantity\": 2, \"discount\": 0 }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/invoices/preview"
+      }
+    },
+    {
+      "name": "Invoice create",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"dealerId\": \"DEALER_ID\",\n  \"gstRate\": 12,\n  \"paymentMode\": \"credit\",\n  \"items\": [\n    { \"productId\": \"PRODUCT_ID\", \"quantity\": 1, \"discount\": 0 }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/invoices"
+      }
+    },
+    {
+      "name": "Payment create",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"invoiceId\": \"INVOICE_MONGO_ID\",\n  \"amount\": 100,\n  \"mode\": \"upi\",\n  \"upiRef\": \"REF123\"\n}"
+        },
+        "url": "{{baseUrl}}/api/payments"
+      }
+    },
+    {
+      "name": "ML demand (proxy)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"horizon_days\": 30\n}"
+        },
+        "url": "{{baseUrl}}/api/ml/demand"
+      }
+    }
+  ]
+}

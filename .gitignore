@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.local
+*.log
+storage/
+backend/storage/
+.DS_Store
+mobile/android/app/build/
+mobile/ios/build/
