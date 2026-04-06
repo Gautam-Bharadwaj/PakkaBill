@@ -3,10 +3,7 @@ import * as productApi from '../api/product.api';
 import logger from '../utils/logger';
 
 const useProductStore = create((set) => ({
-  products: [],
-  currentProduct: null,
-  pagination: null,
-  isLoading: false,
+  recentlyUsed: [],
   error: null,
 
   fetchProducts: async (params = {}) => {
@@ -18,6 +15,13 @@ const useProductStore = create((set) => ({
       set({ error: err.response?.data?.message || 'Failed to load products', isLoading: false });
       logger.error('[ProductStore] fetchProducts', err);
     }
+  },
+
+  markAsUsed: (product) => {
+    set((state) => {
+      const filtered = state.recentlyUsed.filter((p) => p._id !== product._id);
+      return { recentlyUsed: [product, ...filtered].slice(0, 10) };
+    });
   },
 
   fetchProduct: async (id) => {

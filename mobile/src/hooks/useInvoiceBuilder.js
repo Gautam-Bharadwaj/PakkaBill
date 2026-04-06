@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
+import useProductStore from '../store/useProductStore';
 
 /**
- * Invoice builder state management hook.
- * Manages line items, GST, payment mode for New Invoice screen.
+ * Enhanced Invoice builder state management hook.
+ * Features: Recently Used tracking and Industrial Calculation logic.
  */
 export default function useInvoiceBuilder() {
   const [dealer, setDealer] = useState(null);
@@ -10,22 +11,30 @@ export default function useInvoiceBuilder() {
   const [gstRate, setGstRate] = useState(0);
   const [paymentMode, setPaymentMode] = useState('credit');
   const [amountPaid, setAmountPaid] = useState('');
+  
+  const { markAsUsed } = useProductStore();
 
   const addProduct = useCallback((product) => {
+    // Audit Trail: Mark as recently used for Smart Suggestions
+    markAsUsed(product);
+
     setLineItems((prev) => {
       const existing = prev.find((i) => i.productId === product._id);
       if (existing) {
         return prev.map((i) =>
-          i.productId === product._id ? { ...i, quantity: i.quantity + 1, ...recalc({ ...i, quantity: i.quantity + 1 }) } : i
+          i.productId === product._id 
+            ? { ...i, quantity: i.quantity + 1, ...recalc({ ...i, quantity: i.quantity + 1 }) } 
+            : i
         );
       }
       return [...prev, buildItem(product)];
     });
-  }, []);
+  }, [markAsUsed]);
 
   const buildItem = (product) => ({
     productId: product._id,
     productName: product.name,
+    sku: product.sku || 'N/A',
     quantity: 1,
     unitPrice: product.sellingPrice,
     discountPercent: 0,
@@ -52,9 +61,6 @@ export default function useInvoiceBuilder() {
   };
 
   const subtotal = lineItems.reduce((sum, i) => sum + i.lineTotal, 0);
-  const discountTotal = lineItems.reduce(
-    (sum, i) => sum + (i.unitPrice * i.discountPercent / 100 * i.quantity), 0
-  );
   const gstAmount = parseFloat((subtotal * gstRate / 100).toFixed(2));
   const totalAmount = parseFloat((subtotal + gstAmount).toFixed(2));
   const totalProfit = lineItems.reduce((sum, i) => sum + i.lineProfit, 0);
@@ -69,8 +75,8 @@ export default function useInvoiceBuilder() {
 
   const buildPayload = () => ({
     dealerId: dealer?._id,
-    lineItems: lineItems.map(({ productId, quantity, unitPrice, discountPercent }) => ({
-      productId, quantity, unitPrice, discountPercent,
+    lineItems: lineItems.map(({ productId, productName, quantity, unitPrice, discountPercent }) => ({
+      productId, productName, quantity, unitPrice, discountPercent,
     })),
     gstRate,
     paymentMode,
@@ -91,7 +97,7 @@ export default function useInvoiceBuilder() {
     gstRate, setGstRate,
     paymentMode, setPaymentMode,
     amountPaid, setAmountPaid,
-    subtotal, discountTotal, gstAmount, totalAmount, totalProfit,
+    subtotal, gstAmount, totalAmount, totalProfit,
     resolvedAmountPaid, amountDue,
     buildPayload, reset,
   };

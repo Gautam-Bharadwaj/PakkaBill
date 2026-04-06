@@ -1,82 +1,149 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, FlatList, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, FlatList, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import useProductStore from '../../../src/store/useProductStore';
 import ProductCard from '../../../src/components/product/ProductCard';
+import AppHeader from '../../../src/components/common/AppHeader';
 import AppSearchBar from '../../../src/components/common/AppSearchBar';
 import AppLoader from '../../../src/components/common/AppLoader';
 import AppEmpty from '../../../src/components/common/AppEmpty';
 import AppError from '../../../src/components/common/AppError';
 import { Colors } from '../../../src/theme/colors';
-import { Typography } from '../../../src/theme/typography';
-import { Spacing, Radius, Shadow } from '../../../src/theme/spacing';
+import { Spacing } from '../../../src/theme/spacing';
 import useDebounce from '../../../src/hooks/useDebounce';
 
-const FILTERS = ['all', 'active', 'archived'];
+const FILTERS = ['ALL', 'ACTIVE', 'LOW STOCK'];
 
 export default function ProductsScreen() {
   const { products, isLoading, error, fetchProducts } = useProductStore();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('ALL');
   const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
-    fetchProducts({ q: debouncedSearch, status: filter });
+    fetchProducts({ q: debouncedSearch, status: filter.toLowerCase() });
   }, [debouncedSearch, filter]);
 
+  const onRefresh = useCallback(() => {
+    fetchProducts({ q: debouncedSearch, status: filter.toLowerCase() });
+  }, [debouncedSearch, filter]);
+
+  const RightAction = (
+    <TouchableOpacity 
+      style={styles.addBtn} 
+      activeOpacity={0.8}
+      onPress={() => router.push('/(app)/products/add')}
+    >
+      <Feather name="box" size={20} color={Colors.black} />
+      <Feather name="plus" size={12} color={Colors.black} style={styles.plusIcon} />
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Products</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/(app)/products/add')}>
-          <Text style={styles.addText}>+ Add</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.searchWrap}><AppSearchBar value={search} onChangeText={setSearch} /></View>
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity key={f} style={[styles.chip, filter === f && styles.chipActive]} onPress={() => setFilter(f)}>
-            <Text style={[styles.chipText, filter === f && styles.chipTextActive]}>{f.charAt(0).toUpperCase() + f.slice(1)}</Text>
-          </TouchableOpacity>
-        ))}
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
+      
+      <AppHeader title="INVENTORY" rightAction={RightAction} />
+
+      <View style={styles.headerControls}>
+        <AppSearchBar 
+          value={search} 
+          onChangeText={setSearch} 
+          placeholder="SEARCH BY NAME OR SKU..." 
+        />
+        
+        <View style={styles.filterRow}>
+          {FILTERS.map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[styles.filterChip, filter === f && styles.filterActive]}
+              onPress={() => setFilter(f)}
+            >
+              <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+                {f}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      {isLoading && !products.length ? <AppLoader /> :
-       error ? <AppError message={error} onRetry={() => fetchProducts()} /> : (
+      {isLoading && !products.length ? (
+        <AppLoader fullScreen label="Syncing Stock..." />
+      ) : error ? (
+        <AppError message={error} onRetry={onRefresh} />
+      ) : (
         <FlatList
           data={products}
           keyExtractor={(p) => p._id}
           numColumns={2}
           contentContainerStyle={styles.grid}
+          showsVerticalScrollIndicator={false}
           refreshing={isLoading}
-          onRefresh={() => fetchProducts({ q: debouncedSearch, status: filter })}
-          ListEmptyComponent={<AppEmpty title="No products found" actionLabel="Add Product" onAction={() => router.push('/(app)/products/add')} />}
+          onRefresh={onRefresh}
+          ListEmptyComponent={
+            <AppEmpty
+              title="NO PRODUCTS FOUND"
+              subtitle="ADD YOUR FIRST SKU TO GET STARTED"
+              actionLabel="ADD PRODUCT"
+              onAction={() => router.push('/(app)/products/add')}
+            />
+          }
           renderItem={({ item }) => (
-            <ProductCard product={item} onPress={() => router.push(`/(app)/products/${item._id}/edit`)} />
+            <ProductCard 
+              product={item} 
+              onPress={() => router.push(`/(app)/products/${item._id}/edit`)} 
+            />
           )}
         />
       )}
-
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/(app)/products/add')}>
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.base, paddingBottom: 0 },
-  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.extrabold, color: Colors.text },
-  addBtn: { backgroundColor: Colors.primary, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.md },
-  addText: { color: Colors.white, fontWeight: Typography.fontWeight.bold },
-  searchWrap: { padding: Spacing.base, paddingBottom: Spacing.sm },
-  filterRow: { flexDirection: 'row', paddingHorizontal: Spacing.base, gap: Spacing.sm, marginBottom: Spacing.sm },
-  chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white },
-  chipActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLighter },
-  chipText: { fontSize: Typography.fontSize.sm, color: Colors.textSecondary },
-  chipTextActive: { color: Colors.primary, fontWeight: Typography.fontWeight.bold },
-  grid: { padding: Spacing.base },
-  fab: { position: 'absolute', bottom: Spacing['2xl'], right: Spacing.base, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', ...Shadow.lg },
-  fabText: { color: Colors.white, fontSize: 28, fontWeight: Typography.fontWeight.bold, lineHeight: 32 },
+  root: { flex: 1, backgroundColor: Colors.background },
+  headerControls: {
+    padding: Spacing.base,
+    backgroundColor: Colors.black,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  addBtn: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 8, 
+    backgroundColor: Colors.primary, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  plusIcon: { marginLeft: -2, marginTop: -8 },
+  filterRow: { 
+    flexDirection: 'row', 
+    gap: 12, 
+    marginTop: 16,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  filterActive: { 
+    borderColor: Colors.primary, 
+    backgroundColor: Colors.black, 
+  },
+  filterText: { 
+    fontSize: 9, 
+    color: Colors.textMuted, 
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  filterTextActive: { 
+    color: Colors.primary, 
+  },
+  grid: { padding: 8, paddingBottom: 100 },
 });

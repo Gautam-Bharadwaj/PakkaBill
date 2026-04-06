@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import AppCard from '../common/AppCard';
 import AppBadge from '../common/AppBadge';
 import CreditBar from './CreditBar';
@@ -7,67 +8,79 @@ import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { Spacing } from '../../theme/spacing';
 import { formatINR } from '../../utils/currency';
-import { CREDIT_THRESHOLDS } from '../../constants/app';
 
 export default function DealerCard({ dealer, onPress }) {
-  const usedPercent = dealer.creditLimit > 0
-    ? (dealer.pendingAmount / dealer.creditLimit) * 100
-    : 0;
-
   const statusVariant = dealer.status === 'blocked' ? 'danger'
     : dealer.pendingAmount > 0 ? 'warning' : 'success';
-  const statusLabel = dealer.status === 'blocked' ? 'Blocked'
-    : dealer.pendingAmount > 0 ? 'Pending' : 'Clear';
+  const statusLabel = dealer.status === 'blocked' ? 'BLOCKED'
+    : dealer.pendingAmount > 0 ? 'PENDING' : 'CLEAR';
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.88}>
-      <AppCard style={styles.card}>
-        <View style={styles.top}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
+      <AppCard style={styles.card} shadow="sm">
+        <View style={styles.header}>
           <View style={styles.info}>
-            <Text style={styles.name} numberOfLines={1}>{dealer.name}</Text>
-            <Text style={styles.shop}>{dealer.shopName}</Text>
+            <Text style={styles.name} numberOfLines={1}>{dealer.name.toUpperCase()}</Text>
+            <Text style={styles.shop}>{dealer.shopName.toUpperCase()}</Text>
           </View>
           <AppBadge label={statusLabel} variant={statusVariant} />
         </View>
 
-        <TouchableOpacity
-          onPress={() => Linking.openURL(`tel:${dealer.phone}`)}
-          style={styles.phoneRow}
-        >
-          <Text style={styles.phone}>Ph: {dealer.phone}</Text>
-        </TouchableOpacity>
+        <View style={styles.divider} />
 
-        <View style={styles.stats}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{formatINR(dealer.pendingAmount)}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statCell}>
+             <Text style={styles.statLabel}>BALANCE</Text>
+             <Text style={[styles.statValue, { color: dealer.pendingAmount > 0 ? Colors.primary : Colors.white }]}>
+               {formatINR(dealer.pendingAmount)}
+             </Text>
           </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{dealer.invoiceCount || 0}</Text>
-            <Text style={styles.statLabel}>Invoices</Text>
+          <View style={styles.statCell}>
+             <Text style={styles.statLabel}>LIMIT</Text>
+             <Text style={styles.statValue}>{formatINR(dealer.creditLimit)}</Text>
           </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{formatINR(dealer.creditLimit)}</Text>
-            <Text style={styles.statLabel}>Credit Limit</Text>
-          </View>
+          <TouchableOpacity 
+            style={styles.callAction} 
+            onPress={() => Linking.openURL(`tel:${dealer.phone}`)}
+          >
+             <Feather name="phone-call" size={18} color={Colors.white} />
+          </TouchableOpacity>
         </View>
 
-        <CreditBar used={dealer.pendingAmount} limit={dealer.creditLimit} />
+        <View style={styles.creditWrap}>
+           <CreditBar used={dealer.pendingAmount} limit={dealer.creditLimit} />
+        </View>
       </AppCard>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: Spacing.sm },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  info: { flex: 1, marginRight: Spacing.sm },
-  name: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, color: Colors.text },
-  shop: { fontSize: Typography.fontSize.sm, color: Colors.textSecondary },
-  phoneRow: { marginTop: Spacing.xs },
-  phone: { fontSize: Typography.fontSize.sm, color: Colors.primary },
-  stats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.md, marginBottom: Spacing.sm },
-  stat: { alignItems: 'center' },
-  statValue: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.bold, color: Colors.text },
-  statLabel: { fontSize: Typography.fontSize.xs, color: Colors.textMuted, marginTop: 2 },
+  card: { 
+    marginBottom: Spacing.md, 
+    backgroundColor: Colors.surface, 
+    borderWidth: 1, 
+    borderColor: Colors.border,
+    padding: 16,
+  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  info: { flex: 1 },
+  name: { fontSize: 16, fontWeight: '900', color: Colors.white, letterSpacing: 0.5 },
+  shop: { fontSize: 9, color: Colors.textMuted, marginTop: 4, fontWeight: '800', letterSpacing: 1.5 },
+  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 16, opacity: 0.5 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  statCell: { flex: 1 },
+  statLabel: { fontSize: 8, fontWeight: '800', color: Colors.textSecondary, letterSpacing: 1, marginBottom: 4 },
+  statValue: { fontSize: 14, fontWeight: '900', color: Colors.white },
+  callAction: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 8, 
+    backgroundColor: Colors.black, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  creditWrap: { marginTop: 16 },
 });

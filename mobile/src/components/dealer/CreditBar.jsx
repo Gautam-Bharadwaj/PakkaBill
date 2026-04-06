@@ -8,18 +8,25 @@ import { formatINR } from '../../utils/currency';
 
 export default function CreditBar({ used = 0, limit = 0 }) {
   const percent = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
-  const color = percent >= CREDIT_THRESHOLDS.WARNING ? Colors.danger
-    : percent >= CREDIT_THRESHOLDS.SAFE ? Colors.warning
-    : Colors.success;
+  
+  // High contrast indicator colors for Carbon Dark
+  const color = percent >= 80 ? Colors.error // Above 80% usage is Danger
+    : percent >= 50 ? Colors.primary // Above 50% is Warning (Orange)
+    : '#4ADE80'; // Safe Green (High Visibility)
 
   return (
     <View style={styles.container}>
       <View style={styles.barTrack}>
         <View style={[styles.barFill, { width: `${percent}%`, backgroundColor: color }]} />
       </View>
-      <Text style={styles.label}>
-        {formatINR(used)} of {formatINR(limit)} used ({percent.toFixed(0)}%)
-      </Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>
+          {percent.toFixed(0)}% LIMIT REACHED
+        </Text>
+        <Text style={styles.limitText}>
+          AVAIL: {formatINR(Math.max(0, limit - used))}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -27,18 +34,33 @@ export default function CreditBar({ used = 0, limit = 0 }) {
 const styles = StyleSheet.create({
   container: { marginTop: Spacing.sm },
   barTrack: {
-    height: 6,
-    backgroundColor: Colors.border,
+    height: 4,
+    backgroundColor: Colors.black,
     borderRadius: Radius.full,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   barFill: {
     height: '100%',
     borderRadius: Radius.full,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
   label: {
-    fontSize: Typography.fontSize.xs,
-    color: Colors.textMuted,
-    marginTop: 4,
+    fontSize: 9,
+    fontWeight: '900',
+    color: Colors.textSecondary,
+    letterSpacing: 1.5,
+  },
+  limitText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.white,
+    letterSpacing: 0.5,
   },
 });

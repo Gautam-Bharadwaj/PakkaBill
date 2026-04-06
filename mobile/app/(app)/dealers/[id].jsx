@@ -1,19 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Linking, Alert,
+  ScrollView, View, Text, StyleSheet, Linking, TouchableOpacity, StatusBar,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { showMessage } from 'react-native-flash-message';
 import useDealerStore from '../../../src/store/useDealerStore';
 import CreditBar from '../../../src/components/dealer/CreditBar';
 import InvoiceCard from '../../../src/components/invoice/InvoiceCard';
+import AppHeader from '../../../src/components/common/AppHeader';
 import AppLoader from '../../../src/components/common/AppLoader';
 import AppError from '../../../src/components/common/AppError';
 import AppButton from '../../../src/components/common/AppButton';
 import AppEmpty from '../../../src/components/common/AppEmpty';
 import { Colors } from '../../../src/theme/colors';
-import { Typography } from '../../../src/theme/typography';
-import { Spacing, Radius, Shadow } from '../../../src/theme/spacing';
+import { Spacing, Radius } from '../../../src/theme/spacing';
 import { formatINR } from '../../../src/utils/currency';
 import { openWhatsApp, buildReminderMessage } from '../../../src/utils/whatsapp';
 import { getDealerInvoices } from '../../../src/api/dealer.api';
@@ -21,98 +22,158 @@ import { getDealerInvoices } from '../../../src/api/dealer.api';
 export default function DealerProfileScreen() {
   const { id } = useLocalSearchParams();
   const { currentDealer: dealer, isLoading, error, fetchDealer } = useDealerStore();
-  const [invoices, setInvoices] = React.useState([]);
+  const [invoices, setInvoices] = useState([]);
 
   useEffect(() => {
     fetchDealer(id);
     getDealerInvoices(id, { limit: 10 }).then(({ data }) => setInvoices(data.data || [])).catch(() => {});
   }, [id]);
 
-  if (isLoading) return <AppLoader fullScreen />;
-  if (error || !dealer) return <AppError message={error || 'Dealer not found'} onRetry={() => fetchDealer(id)} />;
+  if (isLoading) return <AppLoader fullScreen label="LOADING PROFILE..." />;
+  if (error || !dealer) return <AppError message={error || 'DEALER NOT FOUND'} onRetry={() => fetchDealer(id)} />;
+
+  const RightAction = (
+    <TouchableOpacity onPress={() => router.push(`/(app)/dealers/${id}/edit`)}>
+      <Feather name="edit-3" size={20} color={Colors.primary} />
+    </TouchableOpacity>
+  );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
+      <AppHeader title="ACCOUNT PROFILE" showBack rightAction={RightAction} />
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Back + Edit */}
-        <View style={styles.navRow}>
-          <TouchableOpacity onPress={() => router.back()}><Text style={styles.back}>← Back</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push(`/(app)/dealers/${id}/edit`)}><Text style={styles.edit}>Edit</Text></TouchableOpacity>
+        {/* Profile Hero Section */}
+        <View style={styles.hero}>
+          <View style={styles.avatarCircle}>
+             <Text style={styles.avatarInitial}>{dealer.name.charAt(0).toUpperCase()}</Text>
+          </View>
+          <Text style={styles.name}>{dealer.name.toUpperCase()}</Text>
+          <Text style={styles.shop}>{dealer.shopName.toUpperCase()}</Text>
+          <TouchableOpacity 
+            style={styles.phoneTag}
+            onPress={() => Linking.openURL(`tel:${dealer.phone}`)}
+          >
+            <Feather name="phone" size={12} color={Colors.primary} />
+            <Text style={styles.phoneText}> +91 {dealer.phone}</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Header */}
-        <Text style={styles.name}>{dealer.name}</Text>
-        <Text style={styles.shop}>{dealer.shopName}</Text>
-        <TouchableOpacity onPress={() => Linking.openURL(`tel:${dealer.phone}`)}>
-          <Text style={styles.phone}>Ph: {dealer.phone}</Text>
-        </TouchableOpacity>
-
-        {/* Credit Bar */}
-        <CreditBar used={dealer.pendingAmount} limit={dealer.creditLimit} />
-
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          {[
-            { label: 'Total Purchased', value: formatINR(dealer.totalPurchased || 0) },
-            { label: 'Invoices', value: dealer.invoiceCount || 0 },
-            { label: 'Pending', value: formatINR(dealer.pendingAmount || 0) },
-          ].map(({ label, value }) => (
-            <View key={label} style={styles.stat}>
-              <Text style={styles.statValue}>{value}</Text>
-              <Text style={styles.statLabel}>{label}</Text>
-            </View>
-          ))}
+        {/* Credit Utility */}
+        <View style={styles.utilitySection}>
+           <Text style={styles.sectionLabel}>CREDIT STATUS</Text>
+           <CreditBar used={dealer.pendingAmount} limit={dealer.creditLimit} />
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actions}>
+        {/* High-Contrast Quick Stats */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+             <Text style={styles.statVal}>{dealer.invoiceCount || 0}</Text>
+             <Text style={styles.statLabel}>BILLS</Text>
+          </View>
+          <View style={styles.statBox}>
+             <Text style={[styles.statVal, { color: Colors.primary }]}>{formatINR(dealer.pendingAmount || 0)}</Text>
+             <Text style={styles.statLabel}>PENDING</Text>
+          </View>
+          <View style={styles.statBox}>
+             <Text style={styles.statVal}>{formatINR(dealer.totalPurchased || 0)}</Text>
+             <Text style={styles.statLabel}>PURCHASED</Text>
+          </View>
+        </View>
+
+        {/* Critical Actions Row */}
+        <View style={styles.actionGrid}>
           <AppButton
-            title="New Invoice"
+            title="NEW BILL"
             onPress={() => router.push(`/(app)/invoices/new?dealerId=${id}`)}
             style={styles.actionBtn}
           />
           <AppButton
-            title="Remind"
+            title="REMIND"
             variant="success"
             onPress={() => openWhatsApp(dealer.phone, buildReminderMessage(dealer, dealer.pendingAmount))}
             style={styles.actionBtn}
           />
           <AppButton
-            title="Call"
+            title="CALL"
             variant="secondary"
             onPress={() => Linking.openURL(`tel:${dealer.phone}`)}
             style={styles.actionBtn}
           />
         </View>
 
-        {/* Recent Invoices */}
-        <Text style={styles.sectionTitle}>Recent Invoices</Text>
-        {invoices.length === 0 ? (
-          <AppEmpty title="No invoices yet" />
-        ) : (
-          invoices.map((inv) => (
-            <InvoiceCard key={inv._id} invoice={inv} onPress={() => router.push(`/(app)/invoices/${inv._id}`)} />
-          ))
-        )}
+        {/* Transaction History */}
+        <View style={styles.historySection}>
+          <Text style={styles.sectionLabel}>RECENT TRANSACTIONS</Text>
+          {invoices.length === 0 ? (
+            <AppEmpty title="NO BILLING HISTORY" />
+          ) : (
+            invoices.map((inv) => (
+              <InvoiceCard 
+                key={inv._id} 
+                invoice={inv} 
+                onPress={() => router.push(`/(app)/invoices/${inv._id}`)} 
+              />
+            ))
+          )}
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: Spacing.base, paddingBottom: Spacing['3xl'] },
-  navRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.lg },
-  back: { color: Colors.primary, fontSize: Typography.fontSize.md, fontWeight: Typography.fontWeight.semibold },
-  edit: { color: Colors.primary, fontSize: Typography.fontSize.md, fontWeight: Typography.fontWeight.semibold },
-  name: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.extrabold, color: Colors.text },
-  shop: { fontSize: Typography.fontSize.base, color: Colors.textSecondary, marginTop: 2 },
-  phone: { fontSize: Typography.fontSize.md, color: Colors.primary, fontWeight: Typography.fontWeight.medium, marginTop: Spacing.sm, marginBottom: Spacing.md },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: Spacing.md, backgroundColor: Colors.white, borderRadius: Radius.lg, padding: Spacing.md, ...Shadow.sm },
-  stat: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: Typography.fontSize.md, fontWeight: Typography.fontWeight.bold, color: Colors.text },
-  statLabel: { fontSize: Typography.fontSize.xs, color: Colors.textMuted, marginTop: 2, textAlign: 'center' },
-  actions: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
+  root: { flex: 1, backgroundColor: Colors.background },
+  content: { paddingBottom: 60 },
+  hero: { 
+    alignItems: 'center', 
+    paddingVertical: 32, 
+    backgroundColor: Colors.black,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  avatarCircle: { 
+    width: 80, 
+    height: 80, 
+    borderRadius: 40, 
+    backgroundColor: Colors.surface, 
+    borderWidth: 2, 
+    borderColor: Colors.primary, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  avatarInitial: { fontSize: 32, fontWeight: '900', color: Colors.primary },
+  name: { fontSize: 22, fontWeight: '900', color: Colors.white, letterSpacing: 1 },
+  shop: { fontSize: 10, fontWeight: '800', color: Colors.textMuted, letterSpacing: 2, marginTop: 4 },
+  phoneTag: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginTop: 16, 
+    backgroundColor: Colors.surface, 
+    paddingHorizontal: 12, 
+    paddingVertical: 6, 
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  phoneText: { fontSize: 11, fontWeight: '900', color: Colors.primary },
+  utilitySection: { padding: 20, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  sectionLabel: { fontSize: 9, fontWeight: '900', color: Colors.textMuted, letterSpacing: 2, marginBottom: 16 },
+  statsGrid: { flexDirection: 'row', padding: 20, gap: 12 },
+  statBox: { 
+    flex: 1, 
+    backgroundColor: Colors.surface, 
+    padding: 16, 
+    borderRadius: 12, 
+    borderWidth: 1, 
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  statVal: { fontSize: 15, fontWeight: '900', color: Colors.white },
+  statLabel: { fontSize: 8, fontWeight: '800', color: Colors.textMuted, marginTop: 4, letterSpacing: 1 },
+  actionGrid: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 32 },
   actionBtn: { flex: 1 },
-  sectionTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, color: Colors.text, marginBottom: Spacing.md },
+  historySection: { paddingHorizontal: 20 },
 });
