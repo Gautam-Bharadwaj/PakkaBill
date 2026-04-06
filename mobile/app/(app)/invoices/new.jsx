@@ -1,101 +1,115 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView,
-  TouchableOpacity, FlatList, KeyboardAvoidingView, Platform,
+  TouchableOpacity, KeyboardAvoidingView, Platform, Switch, StatusBar,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { showMessage } from 'react-native-flash-message';
 import useInvoiceStore from '../../../src/store/useInvoiceStore';
 import useInvoiceBuilder from '../../../src/hooks/useInvoiceBuilder';
-import LineItemRow from '../../../src/components/invoice/LineItemRow';
-import InvoiceSummary from '../../../src/components/invoice/InvoiceSummary';
-import GSTSelector from '../../../src/components/invoice/GSTSelector';
 import ProductPickerModal from '../../../src/components/invoice/ProductPickerModal';
+import LineItemRow from '../../../src/components/invoice/LineItemRow';
+import AppHeader from '../../../src/components/common/AppHeader';
 import AppButton from '../../../src/components/common/AppButton';
-import AppSearchBar from '../../../src/components/common/AppSearchBar';
-import AppLoader from '../../../src/components/common/AppLoader';
 import AppCard from '../../../src/components/common/AppCard';
-import AppInput from '../../../src/components/common/AppInput';
 import { Colors } from '../../../src/theme/colors';
 import { Typography } from '../../../src/theme/typography';
-import { Spacing, Radius } from '../../../src/theme/spacing';
-import { getDealers } from '../../../src/api/dealer.api';
-import useDebounce from '../../../src/hooks/useDebounce';
+import { Spacing, Radius, Shadow } from '../../../src/theme/spacing';
 import { formatINR } from '../../../src/utils/currency';
-import logger from '../../../src/utils/logger';
-
-const STEPS = ['Dealer', 'Products', 'Settings', 'Review'];
 
 export default function NewInvoiceScreen() {
-  const params = useLocalSearchParams();
   const { createInvoice } = useInvoiceStore();
   const builder = useInvoiceBuilder();
-  const [step, setStep] = useState(0);
   const [showPicker, setShowPicker] = useState(false);
-  const [dealerSearch, setDealerSearch] = useState('');
-  const [dealers, setDealers] = useState([]);
-  const [loadingDealers, setLoadingDealers] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const debouncedSearch = useDebounce(dealerSearch, 300);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  React.useEffect(() => {
-    (async () => {
-      setLoadingDealers(true);
-      try {
-        const { data } = await getDealers({ q: debouncedSearch, limit: 30 });
-        setDealers(data.data || []);
-        // Auto-select if dealerId in params
-        if (params.dealerId && !builder.dealer) {
-          const found = data.data.find((d) => d._id === params.dealerId);
-          if (found) { builder.setDealer(found); setStep(1); }
-        }
-      } catch (err) { logger.error('[NewInvoice] fetch dealers', err); }
-      finally { setLoadingDealers(false); }
-    })();
-  }, [debouncedSearch]);
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
+  const handleGenerate = async () => {
+    if (builder.lineItems.length === 0) {
+      showMessage({ message: 'Bill empty! Add items.', type: 'warning' });
+      return;
+    }
+    setIsSubmitting(true);
     try {
       const invoice = await createInvoice(builder.buildPayload());
       builder.reset();
-      showMessage({ message: 'Invoice created!', type: 'success', icon: 'success' });
+      showMessage({ message: 'Bill Generated Successfully!', type: 'success' });
       router.replace(`/(app)/invoices/${invoice._id}`);
     } catch (err) {
-      showMessage({ message: err.response?.data?.message || 'Failed to create invoice', type: 'danger' });
-    } finally { setSubmitting(false); }
+      showMessage({ message: 'Error generating bill', type: 'danger' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const renderStep = () => {
-    switch (step) {
-      case 0: // Dealer
-        return (
-          <View style={styles.stepContent}>
-            <AppSearchBar value={dealerSearch} onChangeText={setDealerSearch} placeholder="Search dealer..." />
-            {loadingDealers ? <AppLoader /> : (
-              <FlatList
-                data={dealers}
-                keyExtractor={(d) => d._id}
-                style={styles.dealerList}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[styles.dealerItem, builder.dealer?._id === item._id && styles.dealerItemActive]}
-                    onPress={() => builder.setDealer(item)}
-                  >
-                    <Text style={[styles.dealerName, builder.dealer?._id === item._id && styles.dealerNameActive]}>{item.name}</Text>
-                    <Text style={styles.dealerShop}>{item.shopName}</Text>
-                  </TouchableOpacity>
-                )}
-              />
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
+      
+      {/* Normalized Top Navbar */}
+      <AppHeader 
+        title="BILLING ENGINE" 
+        showBack={true} 
+        onBack={() => router.back()} 
+      />
+
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        style={styles.flex}
+      >
+        <ScrollView 
+          style={styles.flex} 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Customer Selection */}
+          <AppCard style={styles.customerCard} shadow="sm">
+            <View style={styles.cardHeader}>
+              <Feather name="user" size={14} color={Colors.primary} />
+              <Text style={styles.cardTitle}>ACCOUNT OWNER</Text>
+            </View>
+            {builder.dealer ? (
+              <View style={styles.selectedDealer}>
+                <View style={styles.dealerInfo}>
+                  <Text style={styles.dealerName}>{builder.dealer.name}</Text>
+                  <Text style={styles.dealerShop}>{builder.dealer.shopName}</Text>
+                </View>
+                <TouchableOpacity onPress={() => builder.setDealer(null)} style={styles.editBtn}>
+                  <Feather name="edit" size={16} color={Colors.primary} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.selectBtn}
+                onPress={() => router.push('/(app)/dealers')}
+              >
+                <Text style={styles.placeholderText}>SEARCH ACCOUNT OR GUEST</Text>
+                <Feather name="search" size={18} color={Colors.primary} />
+              </TouchableOpacity>
             )}
-            <AppButton title="Next →" onPress={() => setStep(1)} disabled={!builder.dealer} fullWidth style={styles.stepBtn} />
+          </AppCard>
+
+          {/* Cart Header */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>TRANSACTION ITEMS</Text>
+            <TouchableOpacity 
+              style={styles.addBtn}
+              onPress={() => setShowPicker(true)}
+            >
+              <Feather name="plus-circle" size={16} color={Colors.black} />
+              <Text style={styles.addBtnText}>ADD ITEM</Text>
+            </TouchableOpacity>
           </View>
-        );
-      case 1: // Products
-        return (
-          <View style={styles.stepContent}>
-            <AppButton title="+ Add Product" onPress={() => setShowPicker(true)} variant="secondary" fullWidth style={styles.addProdBtn} />
-            <ScrollView>
+
+          {/* Items */}
+          {builder.lineItems.length === 0 ? (
+            <View style={styles.emptyZone}>
+              <Feather name="package" size={48} color={Colors.border} />
+              <Text style={styles.emptyText}>EMPTY CART</Text>
+              <Text style={styles.emptySub}>TAP "ADD ITEM" TO BEGIN</Text>
+            </View>
+          ) : (
+            <View style={styles.cartList}>
               {builder.lineItems.map((item) => (
                 <LineItemRow
                   key={item.productId}
@@ -104,132 +118,139 @@ export default function NewInvoiceScreen() {
                   onRemove={() => builder.removeItem(item.productId)}
                 />
               ))}
-            </ScrollView>
-            {builder.lineItems.length > 0 && (
-              <Text style={styles.subtotal}>Subtotal: {formatINR(builder.subtotal)}</Text>
-            )}
-            <View style={styles.navRow}>
-              <AppButton title="← Back" onPress={() => setStep(0)} variant="ghost" style={styles.halfBtn} />
-              <AppButton title="Next →" onPress={() => setStep(2)} disabled={builder.lineItems.length === 0} style={styles.halfBtn} />
             </View>
-            <ProductPickerModal visible={showPicker} onClose={() => setShowPicker(false)} onSelect={builder.addProduct} />
-          </View>
-        );
-      case 2: // Settings
-        return (
-          <View style={styles.stepContent}>
-            <GSTSelector value={builder.gstRate} onChange={builder.setGstRate} />
-            <Text style={styles.label}>Payment Mode</Text>
-            <View style={styles.modeRow}>
-              {[['full', 'Full'], ['partial', 'Partial'], ['credit', 'Credit']].map(([val, label]) => (
-                <TouchableOpacity key={val} style={[styles.modeChip, builder.paymentMode === val && styles.modeActive]} onPress={() => builder.setPaymentMode(val)}>
-                  <Text style={[styles.modeText, builder.paymentMode === val && styles.modeTextActive]}>{label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {builder.paymentMode === 'partial' && (
-              <AppInput
-                label="Amount Paid ₹"
-                value={builder.amountPaid}
-                onChangeText={builder.setAmountPaid}
-                keyboardType="numeric"
-                placeholder={`Max: ${formatINR(builder.totalAmount)}`}
-              />
-            )}
-            <View style={styles.navRow}>
-              <AppButton title="← Back" onPress={() => setStep(1)} variant="ghost" style={styles.halfBtn} />
-              <AppButton title="Next →" onPress={() => setStep(3)} style={styles.halfBtn} />
-            </View>
-          </View>
-        );
-      case 3: // Review
-        return (
-          <ScrollView style={styles.stepContent}>
-            <AppCard style={styles.reviewDealer}>
-              <Text style={styles.reviewDealerName}>{builder.dealer?.name}</Text>
-              <Text style={styles.reviewDealerShop}>{builder.dealer?.shopName}</Text>
-              <Text style={styles.reviewItemCount}>{builder.lineItems.length} item(s)</Text>
-            </AppCard>
-            <InvoiceSummary
-              subtotal={builder.subtotal}
-              discountTotal={builder.discountTotal}
-              gstRate={builder.gstRate}
-              gstAmount={builder.gstAmount}
-              totalAmount={builder.totalAmount}
-              totalProfit={builder.totalProfit}
-              amountPaid={builder.resolvedAmountPaid}
-              amountDue={builder.amountDue}
-            />
-            <View style={styles.navRow}>
-              <AppButton title="← Back" onPress={() => setStep(2)} variant="ghost" style={styles.halfBtn} />
-              <AppButton title="Create Invoice" onPress={handleSubmit} loading={submitting} style={styles.halfBtn} />
-            </View>
-          </ScrollView>
-        );
-      default: return null;
-    }
-  };
+          )}
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}><Text style={styles.back}>✕</Text></TouchableOpacity>
-          <Text style={styles.title}>New Invoice</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        {/* Step indicator */}
-        <View style={styles.steps}>
-          {STEPS.map((s, i) => (
-            <View key={s} style={styles.stepItem}>
-              <View style={[styles.stepDot, i <= step && styles.stepDotActive]}>
-                <Text style={[styles.stepNum, i <= step && styles.stepNumActive]}>{i + 1}</Text>
+          {/* Configuration */}
+          <AppCard style={styles.taxCard} shadow="sm">
+            <View style={styles.taxRow}>
+              <View>
+                <Text style={styles.taxLabel}>APPLY GST (18%)</Text>
+                <Text style={styles.taxSub}>GOV. COMPLIANT INVOICE</Text>
               </View>
-              <Text style={[styles.stepLabel, i === step && styles.stepLabelActive]}>{s}</Text>
+              <Switch 
+                value={builder.gstRate === 18}
+                onValueChange={(val) => builder.setGstRate(val ? 18 : 0)}
+                trackColor={{ false: Colors.border, true: Colors.primary }}
+                thumbColor={Colors.white}
+              />
             </View>
-          ))}
+          </AppCard>
+
+          <View style={{ height: 160 }} />
+        </ScrollView>
+
+        {/* Action Panel */}
+        <View style={styles.footer}>
+          <View style={styles.totalRow}>
+             <View>
+                <Text style={styles.totalLabel}>NET PAYABLE</Text>
+                <Text style={styles.totalValue}>{formatINR(builder.totalAmount)}</Text>
+             </View>
+             <View style={styles.summaryStats}>
+                <Text style={styles.itemCount}>{builder.lineItems.length} ITEMS</Text>
+                {builder.gstAmount > 0 && <Text style={styles.taxHint}>GST: {formatINR(builder.gstAmount)}</Text>}
+             </View>
+          </View>
+          <AppButton 
+            title="CONFIRM & GENERATE" 
+            onPress={handleGenerate}
+            loading={isSubmitting}
+            size="lg"
+            variant="primary"
+            style={styles.genBtn}
+          />
         </View>
-        {renderStep()}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+
+      <ProductPickerModal 
+        visible={showPicker} 
+        onClose={() => setShowPicker(false)} 
+        onSelect={builder.addProduct} 
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  root: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.base },
-  back: { fontSize: 20, color: Colors.textSecondary, fontWeight: Typography.fontWeight.bold },
-  title: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.bold, color: Colors.text },
-  steps: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: Spacing.base, paddingBottom: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  stepItem: { alignItems: 'center' },
-  stepDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  stepDotActive: { backgroundColor: Colors.primary },
-  stepNum: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.bold, color: Colors.textMuted },
-  stepNumActive: { color: Colors.white },
-  stepLabel: { fontSize: Typography.fontSize.xs, color: Colors.textMuted },
-  stepLabelActive: { color: Colors.primary, fontWeight: Typography.fontWeight.bold },
-  stepContent: { flex: 1, padding: Spacing.base },
-  dealerList: { maxHeight: 320, marginTop: Spacing.sm },
-  dealerItem: { padding: Spacing.md, borderRadius: Radius.md, marginBottom: Spacing.xs, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border },
-  dealerItemActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLighter },
-  dealerName: { fontSize: Typography.fontSize.md, fontWeight: Typography.fontWeight.semibold, color: Colors.text },
-  dealerNameActive: { color: Colors.primary },
-  dealerShop: { fontSize: Typography.fontSize.sm, color: Colors.textSecondary },
-  stepBtn: { marginTop: Spacing.md },
-  addProdBtn: { marginBottom: Spacing.md },
-  subtotal: { fontSize: Typography.fontSize.md, fontWeight: Typography.fontWeight.bold, color: Colors.primary, textAlign: 'right', marginVertical: Spacing.sm },
-  navRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
-  halfBtn: { flex: 1 },
-  label: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold, color: Colors.textSecondary, marginBottom: Spacing.sm },
-  modeRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
-  modeChip: { flex: 1, paddingVertical: Spacing.sm, borderRadius: Radius.md, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center', backgroundColor: Colors.white },
-  modeActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLighter },
-  modeText: { fontSize: Typography.fontSize.sm, color: Colors.textSecondary, fontWeight: Typography.fontWeight.medium },
-  modeTextActive: { color: Colors.primary, fontWeight: Typography.fontWeight.bold },
-  reviewDealer: { marginBottom: Spacing.md },
-  reviewDealerName: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.bold, color: Colors.text },
-  reviewDealerShop: { fontSize: Typography.fontSize.md, color: Colors.textSecondary },
-  reviewItemCount: { fontSize: Typography.fontSize.sm, color: Colors.textMuted, marginTop: 4 },
+  scrollContent: { padding: Spacing.base },
+  customerCard: { marginBottom: 24, padding: 20 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  cardTitle: { 
+    fontSize: 9, 
+    fontWeight: '900', 
+    color: Colors.textSecondary,
+    marginLeft: 8,
+    letterSpacing: 2,
+  },
+  selectBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  placeholderText: { fontSize: 13, color: Colors.white, fontWeight: '700', letterSpacing: 1 },
+  selectedDealer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dealerName: { fontSize: 16, fontWeight: '900', color: Colors.white },
+  dealerShop: { fontSize: 10, color: Colors.textSecondary, marginTop: 4, fontWeight: '700', letterSpacing: 1 },
+  editBtn: { padding: 8 },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: { fontSize: 12, fontWeight: '900', color: Colors.textSecondary, letterSpacing: 2 },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  addBtnText: { color: Colors.black, fontSize: 10, fontWeight: '900', marginLeft: 6 },
+  emptyZone: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 60,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    marginBottom: 24,
+  },
+  emptyText: { color: Colors.white, marginTop: 16, fontWeight: '900', fontSize: 14, letterSpacing: 2 },
+  emptySub: { color: Colors.textMuted, marginTop: 6, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  cartList: { marginBottom: 24 },
+  taxCard: { marginBottom: 24, padding: 20 },
+  taxRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  taxLabel: { fontSize: 13, fontWeight: '900', color: Colors.white, letterSpacing: 1 },
+  taxSub: { fontSize: 9, color: Colors.textSecondary, marginTop: 4, fontWeight: '800', letterSpacing: 1 },
+  footer: {
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 2,
+    borderTopColor: Colors.border,
+    ...Shadow.lg,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  totalLabel: { fontSize: 9, color: Colors.textSecondary, fontWeight: '800', letterSpacing: 2 },
+  totalValue: { fontSize: 30, fontWeight: '900', color: Colors.primary, letterSpacing: -1 },
+  summaryStats: { alignItems: 'flex-end' },
+  itemCount: { fontSize: 11, color: Colors.white, fontWeight: '900', letterSpacing: 1 },
+  taxHint: { fontSize: 10, color: Colors.primary, fontWeight: '800', marginTop: 4 },
+  genBtn: { borderRadius: Radius.md },
 });
