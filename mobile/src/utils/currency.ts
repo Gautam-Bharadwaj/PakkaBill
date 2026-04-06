@@ -1,1 +1,0 @@
-export { formatInr } from './format';
