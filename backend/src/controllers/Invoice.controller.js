@@ -1,56 +1,62 @@
-const fs = require('fs');
 const invoiceService = require('../services/Invoice.service');
-const qrService = require('../services/QR.service');
-const { asyncHandler } = require('../utils/asyncHandler');
+const pdfService = require('../services/PDF.service');
+const whatsappService = require('../services/WhatsApp.service');
+const ApiResponse = require('../utils/ApiResponse');
 
-exports.preview = asyncHandler(async (req, res) => {
-  const result = await invoiceService.previewInvoice(req.body);
-  res.json({ preview: result });
-});
-
-exports.create = asyncHandler(async (req, res) => {
-  const invoice = await invoiceService.createInvoice(req.body);
-  res.status(201).json({ invoice });
-});
-
-exports.list = asyncHandler(async (req, res) => {
-  const invoices = await invoiceService.listInvoices(req.query);
-  res.json({ invoices });
-});
-
-exports.getOne = asyncHandler(async (req, res) => {
-  const invoice = await invoiceService.getInvoice(req.params.id);
-  if (!invoice) {
-    return res.status(404).json({ success: false, error: 'Invoice not found' });
+class InvoiceController {
+  async list(req, res, next) {
+    try {
+      const { status = 'all', page = 1, limit = 20 } = req.query;
+      const result = await invoiceService.list(status, Number(page), Number(limit));
+      ApiResponse.success(res, result.data, 'Invoices fetched', 200, result.pagination);
+    } catch (err) { next(err); }
   }
-  return res.json({ invoice });
-});
 
-exports.downloadPdf = asyncHandler(async (req, res) => {
-  const invoice = await invoiceService.getInvoice(req.params.id);
-  if (!invoice) return res.status(404).json({ success: false, error: 'Invoice not found' });
-  if (!invoice.pdfPath || !fs.existsSync(invoice.pdfPath)) {
-    return res.status(404).json({ success: false, error: 'PDF not available' });
+  async getById(req, res, next) {
+    try {
+      const invoice = await invoiceService.getById(req.params.id);
+      ApiResponse.success(res, invoice, 'Invoice fetched');
+    } catch (err) { next(err); }
   }
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceId}.pdf"`);
-  fs.createReadStream(invoice.pdfPath).pipe(res);
-});
 
-exports.upiQrLegacy = asyncHandler(async (req, res) => {
-  const invoice = await invoiceService.getInvoice(req.params.id);
-  if (!invoice) return res.status(404).json({ success: false, error: 'Invoice not found' });
-  
-  try {
-    const buf = await qrService.generateInvoiceQr(invoice);
-    res.setHeader('Content-Type', 'image/png');
-    res.send(buf);
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+  async create(req, res, next) {
+    try {
+      const invoice = await invoiceService.create(req.body);
+      ApiResponse.created(res, invoice, 'Invoice created');
+    } catch (err) { next(err); }
   }
-});
 
-exports.sendWhatsApp = asyncHandler(async (req, res) => {
-  const result = await invoiceService.sendWhatsAppResend(req.params.id);
-  res.json(result);
-});
+  async downloadPDF(req, res, next) {
+    try {
+      const invoice = await invoiceService.getById(req.params.id);
+      const pdfBuffer = await pdfService.generateInvoicePDF(invoice);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceId}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (err) { next(err); }
+  }
+
+  async sendWhatsApp(req, res, next) {
+    try {
+      const invoice = await invoiceService.getById(req.params.id);
+      const message = whatsappService.buildInvoiceMessage(invoice);
+      const link = whatsappService.getWhatsAppLink(invoice.dealerPhone, message);
+
+      if (whatsappService.ready) {
+        await whatsappService.sendMessage(invoice.dealerPhone, message, 'invoice', invoice._id, invoice.dealer);
+      }
+
+      ApiResponse.success(res, { link }, 'WhatsApp message queued');
+    } catch (err) { next(err); }
+  }
+
+  async getByDealer(req, res, next) {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+      const result = await invoiceService.getByDealer(req.params.dealerId, Number(page), Number(limit));
+      ApiResponse.success(res, result.data, 'Dealer invoices fetched', 200, result.pagination);
+    } catch (err) { next(err); }
+  }
+}
+
+module.exports = new InvoiceController();

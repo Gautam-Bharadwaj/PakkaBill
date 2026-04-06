@@ -1,68 +1,70 @@
-const mongoose = require('mongoose');
-const { ApiError } = require('../utils/ApiError');
-const InvoiceModel = require('../models/Invoice.model');
-const PaymentModel = require('../models/Payment.model');
-const DealerModel = require('../models/Dealer.model');
-const { derivePaymentStatus } = require('../utils/calculations');
-const notification = require('./Notification.service');
-
+const paymentRepo = require('../repositories/Payment.repository');
+const invoiceRepo = require('../repositories/Invoice.repository');
+const dealerRepo = require('../repositories/Dealer.repository');
+const ApiError = require('../utils/ApiError');
 
 class PaymentService {
-  async recordPayment({ invoiceId, amount, mode, upiRef = '', note = '' }) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    try {
-      const invoice = await InvoiceModel.findById(invoiceId).session(session);
-      if (!invoice) throw ApiError.notFound('Invoice not found');
+  async recordPayment({ invoiceId, amount, mode, upiReference = '', note = '', userId }) {
+    const invoice = await invoiceRepo.findById(invoiceId);
+    if (!invoice) throw ApiError.notFound('Invoice not found');
 
-      if (amount > invoice.amountDue + 0.01) {
-        throw ApiError.badRequest('Payment exceeds amount due');
-      }
-
-      const dealer = await DealerModel.findById(invoice.dealerId).session(session);
-      if (!dealer) throw ApiError.badRequest('Dealer missing');
-
-      invoice.amountPaid += amount;
-      invoice.amountDue -= amount;
-      invoice.paymentStatus = derivePaymentStatus(invoice.amountPaid, invoice.totalAmount).paymentStatus;
-      await invoice.save({ session });
-
-      dealer.pendingAmount = Math.max(0, dealer.pendingAmount - amount);
-      await dealer.save({ session });
-
-      const [payment] = await PaymentModel.create(
-        [
-          {
-            invoiceId: invoice._id,
-            dealerId: invoice.dealerId,
-            amount,
-            mode,
-            upiRef: upiRef || '',
-            note: note || '',
-          },
-        ],
-        { session }
-      );
-
-      await session.commitTransaction();
-
-      await notification.emit('payment.recorded', {
-        invoice: invoice.toObject(),
-        dealer,
-        amount,
-      });
-
-      return { payment, invoice };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
+    if (amount > invoice.amountDue + 0.01) {
+      throw ApiError.badRequest(`Amount exceeds due amount of ₹${invoice.amountDue}`);
     }
+
+    const payment = await paymentRepo.create({
+      invoice: invoice._id,
+      dealer: invoice.dealer,
+      amount,
+      mode,
+      upiReference,
+      note,
+      recordedBy: userId,
+    });
+
+    // Update invoice
+    const newAmountPaid = parseFloat((invoice.amountPaid + amount).toFixed(2));
+    const newAmountDue = parseFloat((invoice.amountDue - amount).toFixed(2));
+    await invoiceRepo.update(invoice._id, {
+      amountPaid: newAmountPaid,
+      amountDue: Math.max(0, newAmountDue),
+    });
+
+    // Update dealer pending
+    await dealerRepo.decrementPending(invoice.dealer, amount);
+
+    return payment;
   }
 
-  async listAll(limit = 500) {
-    return PaymentModel.find().sort({ recordedAt: -1 }).limit(limit).lean();
+  async getPaymentsByInvoice(invoiceId) {
+    return paymentRepo.findByInvoice(invoiceId);
+  }
+
+  async getPaymentsByDealer(dealerId, page = 1, limit = 20) {
+    return paymentRepo.findByDealer(dealerId, { page, limit });
+  }
+
+  async generateQrData(invoiceId) {
+    const { generateUpiLink } = require('../utils/upiLink');
+    const { UPI_VPA, UPI_NAME } = require('../config/env');
+
+    const invoice = await invoiceRepo.findById(invoiceId, 'dealer');
+    if (!invoice) throw ApiError.notFound('Invoice not found');
+
+    const upiLink = generateUpiLink({
+      vpa: UPI_VPA,
+      name: UPI_NAME,
+      amount: invoice.amountDue,
+      note: invoice.invoiceId,
+    });
+
+    return {
+      upiLink,
+      upiVpa: UPI_VPA,
+      upiName: UPI_NAME,
+      amount: invoice.amountDue,
+      invoiceId: invoice.invoiceId,
+    };
   }
 }
 

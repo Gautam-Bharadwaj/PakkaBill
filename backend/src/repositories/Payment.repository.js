@@ -1,22 +1,30 @@
-const { BaseRepository } = require('./Base.repository');
-const PaymentModel = require('../models/Payment.model');
+const BaseRepository = require('./Base.repository');
+const Payment = require('../models/Payment.model');
 
 class PaymentRepository extends BaseRepository {
   constructor() {
-    super(PaymentModel);
+    super(Payment);
   }
 
-  findByInvoice(invoiceId) {
-    return this.model.find({ invoiceId }).sort({ recordedAt: -1 }).lean();
+  async findByInvoice(invoiceId) {
+    return this.model
+      .find({ invoice: invoiceId })
+      .sort({ createdAt: -1 })
+      .populate('dealer', 'name shopName')
+      .lean();
   }
 
-  findByDealer(dealerId, limit = 200) {
-    return this.model.find({ dealerId }).sort({ recordedAt: -1 }).limit(limit).lean();
+  async findByDealer(dealerId, options = {}) {
+    return this.findAll({ dealer: dealerId }, { ...options, sort: { createdAt: -1 } });
   }
 
-  findAllSorted(limit = 500) {
-    return this.model.find().sort({ recordedAt: -1 }).limit(limit).lean();
+  async totalPaidForInvoice(invoiceId) {
+    const [result] = await this.aggregate([
+      { $match: { invoice: invoiceId } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    return result ? result.total : 0;
   }
 }
 
-module.exports = { PaymentRepository };
+module.exports = new PaymentRepository();

@@ -1,18 +1,32 @@
-const { verifyAccess } = require('../utils/jwt');
+const jwt = require('jsonwebtoken');
+const env = require('../config/env');
+const ApiError = require('../utils/ApiError');
+const User = require('../models/User.model');
 
-function authMiddleware(req, res, next) {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) {
-    return res.status(401).json({ success: false, error: 'Unauthorized' });
-  }
+const authMiddleware = async (req, res, next) => {
   try {
-    const secret = process.env.JWT_ACCESS_SECRET;
-    req.user = verifyAccess(token, secret);
-    return next();
-  } catch {
-    return res.status(401).json({ success: false, error: 'Invalid or expired token' });
-  }
-}
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw ApiError.unauthorized('No token provided');
+    }
 
-module.exports = { authMiddleware };
+    const token = authHeader.split(' ')[1];
+    let decoded;
+    try {
+      decoded = jwt.verify(token, env.JWT_SECRET);
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') throw ApiError.unauthorized('Token expired');
+      throw ApiError.unauthorized('Invalid token');
+    }
+
+    const user = await User.findById(decoded.id).lean();
+    if (!user) throw ApiError.unauthorized('User not found');
+
+    req.user = user;
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = authMiddleware;

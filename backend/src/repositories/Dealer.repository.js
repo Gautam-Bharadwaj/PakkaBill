@@ -1,35 +1,50 @@
-const { BaseRepository } = require('./Base.repository');
-const DealerModel = require('../models/Dealer.model');
+const BaseRepository = require('./Base.repository');
+const Dealer = require('../models/Dealer.model');
 
+// PATTERN: Repository extending BaseRepository
 class DealerRepository extends BaseRepository {
   constructor() {
-    super(DealerModel);
+    super(Dealer);
   }
 
-  /** Active dealers: isActive is true */
-  static activeFilter() {
-    return { isActive: true };
+  async search(query, options = {}) {
+    const filter = query
+      ? { $text: { $search: query } }
+      : {};
+    return this.findAll(filter, options);
   }
 
-  findActive(extra = {}) {
-    const q = { ...DealerRepository.activeFilter(), ...extra };
-    return this.model.find(q);
+  async findByStatus(status, options = {}) {
+    const filter = status && status !== 'all' ? { status } : {};
+    return this.findAll(filter, options);
   }
 
-  findOneActive(filter) {
-    return this.model.findOne({ ...DealerRepository.activeFilter(), ...filter });
+  async findPendingDealers(limit = 10) {
+    return this.model
+      .find({ pendingAmount: { $gt: 0 } })
+      .sort({ pendingAmount: -1 })
+      .limit(limit)
+      .lean();
   }
 
-  findByPhone(phone) {
-    return this.model.findOne({ ...DealerRepository.activeFilter(), phone });
+  async incrementPending(id, amount) {
+    return this.model.findByIdAndUpdate(
+      id,
+      {
+        $inc: { pendingAmount: amount, totalPurchased: amount, invoiceCount: 1 },
+        $set: { lastInvoiceAt: new Date() },
+      },
+      { new: true }
+    );
   }
 
-  findExceedingCredit() {
-    return this.model.find({
-      ...DealerRepository.activeFilter(),
-      $expr: { $gt: ['$pendingAmount', '$creditLimit'] },
-    });
+  async decrementPending(id, amount) {
+    return this.model.findByIdAndUpdate(
+      id,
+      { $inc: { pendingAmount: -amount } },
+      { new: true }
+    );
   }
 }
 
-module.exports = { DealerRepository };
+module.exports = new DealerRepository();

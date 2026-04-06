@@ -1,18 +1,24 @@
 const mongoose = require('mongoose');
+const env = require('./env');
 
-/** Singleton Mongo connection */
-let connected = false;
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(env.MONGODB_URI, {
+      maxPoolSize: 10,
+    });
+    console.log(`[DB] MongoDB connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`[DB] Connection error: ${error.message}`);
+    process.exit(1);
+  }
+};
 
-async function connectDatabase(uri) {
-  if (connected) return mongoose.connection;
-  mongoose.set('strictQuery', true);
-  await mongoose.connect(uri);
-  connected = true;
-  return mongoose.connection;
-}
+mongoose.connection.on('disconnected', () => {
+  console.warn('[DB] MongoDB disconnected');
+});
 
-function getConnection() {
-  return mongoose.connection;
-}
+mongoose.connection.on('error', (err) => {
+  console.error(`[DB] MongoDB error: ${err.message}`);
+});
 
-module.exports = { connectDatabase, getConnection };
+module.exports = connectDB;

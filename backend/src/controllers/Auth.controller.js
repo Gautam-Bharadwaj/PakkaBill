@@ -1,37 +1,35 @@
 const authService = require('../services/Auth.service');
-const { asyncHandler } = require('../utils/asyncHandler');
+const ApiResponse = require('../utils/ApiResponse');
 
-exports.register = asyncHandler(async (req, res) => {
-  const result = await authService.register(req.body);
-  authService.setRefreshCookie(res, result.refreshToken);
-  res.status(201).json({
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
-    user: result.user,
-  });
-});
+class AuthController {
+  async login(req, res, next) {
+    try {
+      const { pin } = req.body;
+      const result = await authService.login(pin);
+      ApiResponse.success(res, result, 'Login successful');
+    } catch (err) {
+      next(err);
+    }
+  }
 
-exports.login = asyncHandler(async (req, res) => {
-  const result = await authService.login(req.body);
-  authService.setRefreshCookie(res, result.refreshToken);
-  res.json({
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
-    user: result.user,
-  });
-});
+  async refresh(req, res, next) {
+    try {
+      const { refreshToken } = req.body;
+      const result = await authService.refresh(refreshToken);
+      ApiResponse.success(res, result, 'Token refreshed');
+    } catch (err) {
+      next(err);
+    }
+  }
 
-exports.refresh = asyncHandler(async (req, res) => {
-  const result = await authService.refreshTokens(req);
-  authService.setRefreshCookie(res, result.refreshToken);
-  res.json({
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
-  });
-});
+  async logout(req, res, next) {
+    try {
+      await authService.logout(req.user._id);
+      ApiResponse.success(res, null, 'Logged out successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+}
 
-exports.logout = asyncHandler(async (req, res) => {
-  await authService.logout(req.user.sub);
-  authService.clearRefreshCookie(res);
-  res.json({ ok: true });
-});
+module.exports = new AuthController();

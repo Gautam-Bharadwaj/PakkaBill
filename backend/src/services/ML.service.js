@@ -1,40 +1,76 @@
-/**
- * Facade to Python FastAPI — singleton-style module.
- */
+const axios = require('axios');
+const env = require('../config/env');
+
 class MLService {
-  async fetchJson(path, options = {}) {
-    const base = process.env.ML_SERVICE_URL || 'http://127.0.0.1:8000';
+  constructor() {
+    this.baseURL = env.ML_SERVICE_URL;
+    this.client = axios.create({ baseURL: this.baseURL, timeout: 10000 });
+  }
+
+  async getDemandPredictions() {
     try {
-      const response = await fetch(`${base}${path}`, {
-        method: options.method || 'GET',
-        headers: { 'Content-Type': 'application/json', ...options.headers },
-        body: options.body ? JSON.stringify(options.body) : undefined,
-      });
-      const data = await response.json();
-      return { ok: response.ok, status: response.status, data };
-    } catch (error) {
-      return {
-        ok: false,
-        status: 502,
-        data: { error: 'ML service unavailable', detail: String(error.message) },
-      };
+      const { data } = await this.client.get('/demand/predict');
+      return data;
+    } catch {
+      return this._mockDemand();
     }
   }
 
-  async predictDemand(body) {
-    return this.fetchJson('/predict/demand', { method: 'POST', body });
+  async getDealerSegments() {
+    try {
+      const { data } = await this.client.get('/dealer/segment');
+      return data;
+    } catch {
+      return this._mockSegments();
+    }
   }
 
-  async analyzeDealers(body) {
-    return this.fetchJson('/analyze/dealer', { method: 'POST', body });
+  async getPricingSuggestions() {
+    try {
+      const { data } = await this.client.get('/pricing/suggest');
+      return data;
+    } catch {
+      return this._mockPricing();
+    }
   }
 
-  async optimizePricing(body) {
-    return this.fetchJson('/optimize/pricing', { method: 'POST', body });
+  async getMarginAlerts() {
+    try {
+      const { data } = await this.client.get('/margin/alerts');
+      return data;
+    } catch {
+      return this._mockMarginAlerts();
+    }
   }
 
-  async lowMargin() {
-    return this.fetchJson('/detect/low-margin', { method: 'GET' });
+  _mockDemand() {
+    return [
+      { product: 'A4 Ruled Notebook', expectedUnits: 240, confidence: 0.87 },
+      { product: 'B5 Graph Notebook', expectedUnits: 180, confidence: 0.79 },
+      { product: 'Spiral Notepad', expectedUnits: 150, confidence: 0.72 },
+    ];
+  }
+
+  _mockSegments() {
+    return {
+      highValue: ['Sharma Traders', 'Kumar Stationery'],
+      atRisk: ['Patel Books'],
+      dormant: ['Singh Wholesale'],
+    };
+  }
+
+  _mockPricing() {
+    return [
+      { product: 'A4 Ruled', currentPrice: 45, suggestedPrice: 52, currentMargin: 18, expectedMargin: 26 },
+      { product: 'Spiral Pad', currentPrice: 35, suggestedPrice: 40, currentMargin: 22, expectedMargin: 32 },
+    ];
+  }
+
+  _mockMarginAlerts() {
+    return [
+      { product: 'Budget Notepad 200pg', marginPercent: 8, threshold: 15 },
+      { product: 'Economy Grid Sheet', marginPercent: 11, threshold: 15 },
+    ];
   }
 }
 

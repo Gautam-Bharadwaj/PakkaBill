@@ -1,31 +1,19 @@
-const Joi = require('joi');
+require('dotenv').config();
 
-const schema = Joi.object({
-  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
-  PORT: Joi.number().default(4000),
-  MONGODB_URI: Joi.string().default('mongodb://127.0.0.1:27017/billo'),
-  JWT_ACCESS_SECRET: Joi.string().min(32).default('dev-jwt-access-secret-min-32-chars!!'),
-  JWT_REFRESH_SECRET: Joi.string().min(32).default('dev-jwt-refresh-secret-min-32-chars!'),
-  JWT_ACCESS_EXPIRES: Joi.string().default('15m'),
-  JWT_REFRESH_EXPIRES: Joi.string().default('7d'),
-  REDIS_URL: Joi.string().allow('', null),
-  ML_SERVICE_URL: Joi.string().uri().default('http://127.0.0.1:8000'),
-  BUSINESS_NAME: Joi.string().allow(''),
-  BUSINESS_ADDRESS: Joi.string().allow(''),
-  BUSINESS_GSTIN: Joi.string().allow(''),
-  UPI_VPA: Joi.string().allow(''),
-  UPI_PAYEE_NAME: Joi.string().allow(''),
-  PDF_STORAGE_DIR: Joi.string().default('./storage/pdfs'),
-  CORS_ORIGINS: Joi.string().default('*'),
-  RATE_LIMIT_MAX: Joi.number().default(100),
-}).unknown(true);
+const env = {
+  PORT: process.env.PORT || 5001,
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/billobillings',
+  JWT_SECRET: process.env.JWT_SECRET || 'default-secret-change-me',
+  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'default-refresh-secret',
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '1h',
+  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+  UPI_VPA: process.env.UPI_VPA || 'yourname@upi',
+  UPI_NAME: process.env.UPI_NAME || 'Billo Billings',
+  WHATSAPP_ENABLED: process.env.WHATSAPP_ENABLED === 'true',
+  ML_SERVICE_URL: process.env.ML_SERVICE_URL || 'http://localhost:8000',
+  ADMIN_PIN: process.env.ADMIN_PIN || '123456',
+};
 
-function loadEnv() {
-  const { error, value } = schema.validate(process.env, { abortEarly: false });
-  if (error) {
-    throw new Error(`Invalid environment: ${error.details.map((detail) => detail.message).join(', ')}`);
-  }
-  Object.assign(process.env, value);
-}
-
-module.exports = { loadEnv };
+module.exports = env;

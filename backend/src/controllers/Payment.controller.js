@@ -1,35 +1,35 @@
 const paymentService = require('../services/Payment.service');
-const invoiceService = require('../services/Invoice.service');
 const qrService = require('../services/QR.service');
-const { PaymentRepository } = require('../repositories/Payment.repository');
-const { asyncHandler } = require('../utils/asyncHandler');
+const invoiceService = require('../services/Invoice.service');
+const ApiResponse = require('../utils/ApiResponse');
 
-const paymentRepository = new PaymentRepository();
-
-exports.create = asyncHandler(async (req, res) => {
-  const result = await paymentService.recordPayment(req.body);
-  res.status(201).json(result);
-});
-
-exports.listAll = asyncHandler(async (req, res) => {
-  const payments = await paymentService.listAll(500);
-  res.json({ payments });
-});
-
-exports.listByInvoice = asyncHandler(async (req, res) => {
-  const payments = await paymentRepository.findByInvoice(req.params.id);
-  res.json({ payments });
-});
-
-exports.qrForInvoice = asyncHandler(async (req, res) => {
-  const invoice = await invoiceService.getInvoice(req.params.invoiceId);
-  if (!invoice) return res.status(404).json({ success: false, error: 'Invoice not found' });
-  
-  try {
-    const buf = await qrService.generateInvoiceQr(invoice);
-    res.setHeader('Content-Type', 'image/png');
-    res.send(buf);
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+class PaymentController {
+  async record(req, res, next) {
+    try {
+      const payment = await paymentService.recordPayment({
+        ...req.body,
+        userId: req.user._id,
+      });
+      ApiResponse.created(res, payment, 'Payment recorded');
+    } catch (err) { next(err); }
   }
-});
+
+  async getByInvoice(req, res, next) {
+    try {
+      const payments = await paymentService.getPaymentsByInvoice(req.params.invoiceId);
+      ApiResponse.success(res, payments, 'Payments fetched');
+    } catch (err) { next(err); }
+  }
+
+  async getQR(req, res, next) {
+    try {
+      const qrData = await paymentService.generateQrData(req.params.invoiceId);
+      const { qrDataUrl } = await qrService.generateUpiQR(
+        await invoiceService.getById(req.params.invoiceId)
+      );
+      ApiResponse.success(res, { ...qrData, qrDataUrl }, 'QR generated');
+    } catch (err) { next(err); }
+  }
+}
+
+module.exports = new PaymentController();

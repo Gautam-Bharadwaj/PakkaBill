@@ -1,94 +1,124 @@
-const fs = require('fs');
-const path = require('path');
 const PDFDocument = require('pdfkit');
-const { buildUpiPayUri } = require('../utils/upiLink');
-
-function ensureDir(dir) {
-  fs.mkdirSync(dir, { recursive: true });
-}
+const path = require('path');
+const fs = require('fs');
 
 class PDFService {
-  async generateInvoicePdf({ invoice, businessName, businessAddress, gstin, upi, payeeName }) {
-    const dir = process.env.PDF_STORAGE_DIR || path.join(process.cwd(), 'storage', 'pdfs');
-    ensureDir(dir);
-    const filename = `${invoice.invoiceId.replace(/[^a-zA-Z0-9-_]/g, '_')}.pdf`;
-    const outPath = path.join(dir, filename);
+  _formatINR(amount) {
+    return `Rs. ${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  }
 
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    const stream = fs.createWriteStream(outPath);
-    doc.pipe(stream);
+  async generateInvoicePDF(invoice) {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 40, size: 'A4' });
+      const buffers = [];
 
-    doc.fontSize(18).text(businessName || 'Notebook Wholesale', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(10).text(businessAddress || '', { align: 'center' });
-    if (gstin) doc.fontSize(9).text(`GSTIN: ${gstin}`, { align: 'center' });
-    doc.moveDown();
+      doc.on('data', (chunk) => buffers.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
 
-    doc.fontSize(12).text(`Invoice: ${invoice.invoiceId}`, { continued: false });
-    doc.fontSize(10).text(`Date: ${new Date(invoice.createdAt).toLocaleString('en-IN')}`);
-    doc.moveDown();
+      const primary = '#1A237E';
 
-    doc.fontSize(11).text('Bill To', { underline: true });
-    doc.fontSize(10);
-    doc.text(invoice.dealerSnapshot?.name || '');
-    doc.text(invoice.dealerSnapshot?.shopName || '');
-    doc.text(`Phone: ${invoice.dealerSnapshot?.phone || ''}`);
-    doc.moveDown();
+      // Header background
+      doc.rect(0, 0, doc.page.width, 80).fill(primary);
 
-    const tableTop = doc.y;
-    doc.fontSize(10).text('Item', 50, tableTop, { width: 200 });
-    doc.text('Qty', 260, tableTop, { width: 40 });
-    doc.text('Rate', 310, tableTop, { width: 60 });
-    doc.text('Disc', 380, tableTop, { width: 50 });
-    doc.text('Amount', 440, tableTop, { width: 100, align: 'right' });
-    doc.moveTo(50, doc.y + 5).lineTo(540, doc.y + 5).stroke();
+      // Company name
+      doc.fillColor('white').fontSize(22).font('Helvetica-Bold')
+        .text('Billo Billings', 40, 20);
+      doc.fontSize(10).font('Helvetica')
+        .text('Wholesale Notebook Management', 40, 48);
 
-    let y = doc.y + 10;
-    for (const line of invoice.items || []) {
-      const ext = line.lineTotal != null ? line.lineTotal : line.quantity * line.unitPrice - line.discount;
-      doc.text(line.productSnapshot?.name || 'Product', 50, y, { width: 200 });
-      doc.text(String(line.quantity), 260, y, { width: 40 });
-      doc.text(String(line.unitPrice), 310, y, { width: 60 });
-      doc.text(String(line.discount), 380, y, { width: 50 });
-      doc.text(ext.toFixed(2), 440, y, { width: 100, align: 'right' });
-      y += 18;
-    }
+      // Invoice title
+      doc.fillColor(primary).fontSize(18).font('Helvetica-Bold')
+        .text('INVOICE', doc.page.width - 160, 20, { width: 120, align: 'right' });
+      doc.fillColor('#555').fontSize(10).font('Helvetica')
+        .text(`# ${invoice.invoiceId}`, doc.page.width - 160, 48, { width: 120, align: 'right' });
 
-    doc.y = y + 10;
-    doc.moveDown();
-    doc.fontSize(10);
-    doc.text(`Subtotal: ₹${invoice.subtotal.toFixed(2)}`, { align: 'right' });
-    if (invoice.discountTotal) doc.text(`Discount: ₹${invoice.discountTotal.toFixed(2)}`, { align: 'right' });
-    if (invoice.gstRate) {
-      doc.text(`GST (${invoice.gstRate}%): ₹${invoice.gstAmount.toFixed(2)}`, { align: 'right' });
-    }
-    doc.fontSize(12).text(`Total: ₹${invoice.totalAmount.toFixed(2)}`, { align: 'right' });
-    doc.fontSize(10).text(`Profit (internal): ₹${invoice.totalProfit.toFixed(2)}`, { align: 'right' });
-    doc.text(`Paid: ₹${invoice.amountPaid.toFixed(2)} | Due: ₹${invoice.amountDue.toFixed(2)}`, {
-      align: 'right',
-    });
-    doc.text(`Status: ${invoice.paymentStatus}`, { align: 'right' });
-    doc.moveDown();
+      // Divider
+      doc.moveDown(2);
 
-    if (upi && invoice.amountDue > 0) {
-      const uri = buildUpiPayUri({
-        pa: upi,
-        pn: payeeName || businessName,
-        am: invoice.amountDue.toFixed(2),
-        tn: invoice.invoiceId,
+      const colLeft = 40;
+      const colRight = 320;
+      const y = 110;
+
+      // Dealer info
+      doc.fillColor('#333').fontSize(11).font('Helvetica-Bold').text('Bill To:', colLeft, y);
+      doc.fillColor('#555').fontSize(10).font('Helvetica')
+        .text(invoice.dealerName, colLeft, y + 16)
+        .text(invoice.dealerShop, colLeft, y + 30)
+        .text(`Phone: ${invoice.dealerPhone}`, colLeft, y + 44);
+
+      // Invoice details
+      doc.fillColor('#333').fontSize(11).font('Helvetica-Bold').text('Invoice Details:', colRight, y);
+      doc.fillColor('#555').fontSize(10).font('Helvetica')
+        .text(`Date: ${new Date(invoice.createdAt).toLocaleDateString('en-IN')}`, colRight, y + 16)
+        .text(`Status: ${invoice.paymentStatus.toUpperCase()}`, colRight, y + 30)
+        .text(`Payment: ${invoice.paymentMode}`, colRight, y + 44);
+
+      // Line items table
+      const tableTop = y + 90;
+      const headers = ['Product', 'Qty', 'Price', 'Disc%', 'Total'];
+      const colWidths = [220, 40, 80, 50, 80];
+      const colX = [40, 260, 300, 380, 430];
+
+      // Table header
+      doc.rect(40, tableTop, doc.page.width - 80, 22).fill('#1A237E');
+      doc.fillColor('white').fontSize(9).font('Helvetica-Bold');
+      headers.forEach((h, i) => {
+        doc.text(h, colX[i], tableTop + 6, { width: colWidths[i], align: i > 0 ? 'right' : 'left' });
       });
-      doc.fontSize(9).text('Pay via UPI (scan in any UPI app):', { align: 'left' });
-      doc.fontSize(8).text(uri, { align: 'left', link: uri });
-    }
 
-    doc.end();
+      // Table rows
+      let rowY = tableTop + 26;
+      invoice.lineItems.forEach((item, idx) => {
+        const bg = idx % 2 === 0 ? '#F5F6FA' : 'white';
+        doc.rect(40, rowY, doc.page.width - 80, 20).fill(bg);
+        doc.fillColor('#333').fontSize(9).font('Helvetica');
+        doc.text(item.productName, colX[0], rowY + 5, { width: colWidths[0] });
+        doc.text(String(item.quantity), colX[1], rowY + 5, { width: colWidths[1], align: 'right' });
+        doc.text(this._formatINR(item.unitPrice), colX[2], rowY + 5, { width: colWidths[2], align: 'right' });
+        doc.text(`${item.discountPercent}%`, colX[3], rowY + 5, { width: colWidths[3], align: 'right' });
+        doc.text(this._formatINR(item.lineTotal), colX[4], rowY + 5, { width: colWidths[4], align: 'right' });
+        rowY += 20;
+      });
 
-    await new Promise((resolve, reject) => {
-      stream.on('finish', resolve);
-      stream.on('error', reject);
+      // Summary box
+      const summaryX = doc.page.width - 220;
+      rowY += 16;
+
+      const rows = [
+        ['Subtotal', invoice.subtotal],
+        ['Discount', -invoice.discountTotal],
+        [`GST (${invoice.gstRate}%)`, invoice.gstAmount],
+      ];
+
+      doc.fontSize(9).font('Helvetica');
+      rows.forEach(([label, val]) => {
+        doc.fillColor('#555').text(label, summaryX, rowY, { width: 100 });
+        doc.fillColor('#333').text(this._formatINR(Math.abs(val)), summaryX + 100, rowY, { width: 80, align: 'right' });
+        rowY += 16;
+      });
+
+      // Grand total
+      doc.rect(summaryX - 10, rowY, 200, 24).fill(primary);
+      doc.fillColor('white').fontSize(11).font('Helvetica-Bold')
+        .text('TOTAL', summaryX, rowY + 6, { width: 100 })
+        .text(this._formatINR(invoice.totalAmount), summaryX + 100, rowY + 6, { width: 80, align: 'right' });
+
+      rowY += 32;
+      doc.fillColor('#2E7D32').fontSize(9).font('Helvetica')
+        .text(`Amount Paid: ${this._formatINR(invoice.amountPaid)}`, summaryX, rowY);
+      rowY += 14;
+
+      if (invoice.amountDue > 0) {
+        doc.fillColor('#C62828').text(`Amount Due: ${this._formatINR(invoice.amountDue)}`, summaryX, rowY);
+      }
+
+      // Footer
+      doc.fillColor('#AAA').fontSize(8).font('Helvetica')
+        .text('Generated by Billo Billings', 40, doc.page.height - 40, { align: 'center', width: doc.page.width - 80 });
+
+      doc.end();
     });
-
-    return outPath;
   }
 }
 

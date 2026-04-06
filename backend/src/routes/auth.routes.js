@@ -1,12 +1,17 @@
 const { Router } = require('express');
-const { validateBody } = require('../middleware/validate.middleware');
-const validators = require('../validators');
-const Auth = require('../controllers/Auth.controller');
+const { z } = require('zod');
+const authController = require('../controllers/Auth.controller');
+const validate = require('../middleware/validate.middleware');
+const authMiddleware = require('../middleware/auth.middleware');
+const { authLimiter } = require('../middleware/rateLimiter');
 
-const r = Router();
+const router = Router();
 
-r.post('/register', validateBody(validators.register), Auth.register);
-r.post('/login', validateBody(validators.login), Auth.login);
-r.post('/refresh', validateBody(validators.refresh), Auth.refresh);
+const loginSchema = z.object({ pin: z.string().length(6, 'PIN must be 6 digits') });
+const refreshSchema = z.object({ refreshToken: z.string().min(1) });
 
-module.exports = r;
+router.post('/login', authLimiter, validate(loginSchema), authController.login.bind(authController));
+router.post('/refresh', validate(refreshSchema), authController.refresh.bind(authController));
+router.post('/logout', authMiddleware, authController.logout.bind(authController));
+
+module.exports = router;

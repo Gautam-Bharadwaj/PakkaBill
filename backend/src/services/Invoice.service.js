@@ -1,181 +1,121 @@
 const mongoose = require('mongoose');
-const { ApiError } = require('../utils/ApiError');
-const { DealerRepository } = require('../repositories/Dealer.repository');
-const { ProductRepository } = require('../repositories/Product.repository');
-const { InvoiceRepository } = require('../repositories/Invoice.repository');
-const { calculateGst, derivePaymentStatus } = require('../utils/calculations');
+const invoiceRepo = require('../repositories/Invoice.repository');
+const dealerRepo = require('../repositories/Dealer.repository');
+const productRepo = require('../repositories/Product.repository');
+const ApiError = require('../utils/ApiError');
 const { generateInvoiceId } = require('../utils/invoiceId');
-const { InvoiceFactory } = require('./factories/Invoice.factory');
-const pdfService = require('./PDF.service');
-const notification = require('./Notification.service');
-const InvoiceModel = require('../models/Invoice.model');
-const ProductModel = require('../models/Product.model');
-
-const dealerRepo = new DealerRepository();
-const productRepo = new ProductRepository();
-const invoiceRepo = new InvoiceRepository();
-const factory = new InvoiceFactory();
-
 
 class InvoiceService {
-  async previewInvoice({ dealerId, items, gstRate = 0 }) {
-    const dealer = await dealerRepo.findOneActive({ _id: dealerId });
+  /**
+   * PATTERN: Facade — orchestrates Dealer, Product, Payment interactions.
+   */
+  async create(data) {
+    const { dealerId, lineItems, gstRate = 0, paymentMode = 'credit', amountPaid = 0 } = data;
+
+    const dealer = await dealerRepo.findById(dealerId);
     if (!dealer) throw ApiError.notFound('Dealer not found');
 
+    // Validate + enrich line items
     let subtotal = 0;
     let discountTotal = 0;
     let totalProfit = 0;
-    const lines = [];
+    const enrichedItems = [];
 
-    for (const item of items) {
-      const product = await productRepo.findByIdAvailable(item.productId);
-      if (!product) throw ApiError.badRequest(`Invalid product ${item.productId}`);
-      const line = factory.buildLine(product, { ...item, dealer });
-      subtotal += line.lineTotal;
-      discountTotal += line.discount;
-      totalProfit += line.lineProfit;
-      lines.push({
-        productId: item.productId,
-        name: product.name,
-        lineRevenue: line.lineTotal,
-        lineProfit: line.lineProfit,
+    for (const item of lineItems) {
+      const product = await productRepo.findById(item.productId);
+      if (!product) throw ApiError.notFound(`Product ${item.productId} not found`);
+
+      const unitPrice = item.unitPrice ?? product.sellingPrice;
+      const discountPercent = item.discountPercent ?? 0;
+      const discountedPrice = unitPrice * (1 - discountPercent / 100);
+      const lineTotal = parseFloat((discountedPrice * item.quantity).toFixed(2));
+      const lineDiscount = parseFloat(((unitPrice - discountedPrice) * item.quantity).toFixed(2));
+      const lineProfit = parseFloat(
+        ((discountedPrice - (product.manufacturingCost || 0)) * item.quantity).toFixed(2)
+      );
+
+      subtotal += lineTotal;
+      discountTotal += lineDiscount;
+      totalProfit += lineProfit;
+
+      enrichedItems.push({
+        product: product._id,
+        productName: product.name,
+        quantity: item.quantity,
+        unitPrice,
+        discountPercent,
+        lineTotal,
+        lineProfit,
+        manufacturingCost: product.manufacturingCost || 0,
       });
     }
 
-    const gstAmount = calculateGst(subtotal, gstRate);
-    const totalAmount = subtotal + gstAmount;
-    const creditAfter = dealer.pendingAmount + derivePaymentStatus(0, totalAmount).amountDue;
+    const gstAmount = parseFloat(((subtotal * gstRate) / 100).toFixed(2));
+    const totalAmount = parseFloat((subtotal + gstAmount).toFixed(2));
 
-    return {
+    let resolvedAmountPaid = amountPaid;
+    if (paymentMode === 'full') resolvedAmountPaid = totalAmount;
+    if (paymentMode === 'credit') resolvedAmountPaid = 0;
+
+    const amountDue = parseFloat((totalAmount - resolvedAmountPaid).toFixed(2));
+
+    const invoiceId = await generateInvoiceId();
+
+    const invoice = await invoiceRepo.create({
+      invoiceId,
+      dealer: dealer._id,
+      dealerName: dealer.name,
+      dealerShop: dealer.shopName,
+      dealerPhone: dealer.phone,
+      lineItems: enrichedItems,
       subtotal,
       discountTotal,
       gstRate,
       gstAmount,
       totalAmount,
       totalProfit,
-      dealerPending: dealer.pendingAmount,
-      creditLimit: dealer.creditLimit,
-      wouldExceedCredit: creditAfter > dealer.creditLimit,
-      lines,
-    };
-  }
+      amountPaid: resolvedAmountPaid,
+      amountDue,
+      paymentMode,
+    });
 
-  async createInvoice({ dealerId, items, gstRate = 0, paymentMode, amountPaid: paidInput = 0 }) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    try {
-      const dealer = await dealerRepo.findOneActive({ _id: dealerId }).session(session);
-      if (!dealer) throw ApiError.notFound('Dealer not found');
+    // Update dealer pending & stats
+    await dealerRepo.incrementPending(dealer._id, amountDue);
 
-      const lineDocs = [];
-      let subtotal = 0;
-      let discountTotal = 0;
-      let totalProfit = 0;
-
-      for (const item of items) {
-        const product = await ProductModel.findById(item.productId).session(session);
-        if (!product || product.isArchived === true) {
-          throw ApiError.badRequest(`Invalid product ${item.productId}`);
-        }
-
-        if (product.stockQuantity < item.quantity) {
-          throw ApiError.badRequest(`Insufficient stock for ${product.name}`);
-        }
-
-        const line = factory.buildLine(product, { ...item, dealer });
-        lineDocs.push(line);
-        subtotal += line.lineTotal;
-        discountTotal += line.discount;
-        totalProfit += line.lineProfit;
-
-        product.stockQuantity -= item.quantity;
-        await product.save({ session });
-      }
-
-      const gstAmount = calculateGst(subtotal, gstRate);
-      const totalAmount = subtotal + gstAmount;
-
-      let amountPaid = 0;
-      if (paymentMode === 'full') amountPaid = totalAmount;
-      else if (paymentMode === 'partial') amountPaid = paidInput;
-      else amountPaid = 0;
-
-      const { amountDue, paymentStatus } = derivePaymentStatus(amountPaid, totalAmount);
-
-      if (dealer.pendingAmount + amountDue > dealer.creditLimit) {
-        throw ApiError.badRequest('Credit limit exceeded — reduce amount due or increase limit', 'CREDIT_EXCEEDED');
-      }
-
-      const invoiceId = await generateInvoiceId();
-
-      const invoice = new InvoiceModel({
-        invoiceId,
-        dealerId: dealer._id,
-        dealerSnapshot: {
-          name: dealer.name,
-          phone: dealer.phone,
-          shopName: dealer.shopName,
-        },
-        items: lineDocs,
-        subtotal,
-        discountTotal,
-        gstRate,
-        gstAmount,
-        totalAmount,
-        totalProfit,
-        amountPaid,
-        amountDue,
-        paymentStatus,
-      });
-
-      dealer.pendingAmount += amountDue;
-      dealer.totalPurchased += totalAmount;
-      await dealer.save({ session });
-      await invoice.save({ session });
-
-      await session.commitTransaction();
-
-      const populated = await InvoiceModel.findById(invoice._id).lean();
-
-      const pdfPath = await pdfService.generateInvoicePdf({
-        invoice: populated,
-        businessName: process.env.BUSINESS_NAME,
-        businessAddress: process.env.BUSINESS_ADDRESS,
-        gstin: process.env.BUSINESS_GSTIN,
-        upi: process.env.UPI_VPA,
-        payeeName: process.env.UPI_PAYEE_NAME,
-      });
-      await InvoiceModel.updateOne({ _id: invoice._id }, { pdfPath, pdfUrl: pdfPath });
-
-      await notification.emit('invoice.created', {
-        invoice: { ...populated, pdfPath },
-        dealer,
-      });
-
-      return { ...populated, pdfPath };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
+    // Update product stock and sales stats
+    for (const item of enrichedItems) {
+      await productRepo.updateStock(item.product, -item.quantity);
+      await productRepo.updateSalesStats(
+        item.product,
+        item.quantity,
+        item.lineTotal,
+        item.lineProfit
+      );
     }
+
+    return invoiceRepo.findById(invoice._id, 'dealer');
   }
 
-  async listInvoices(query) {
-    return invoiceRepo.listWithFilters(query);
+  async list(status, page = 1, limit = 20) {
+    return invoiceRepo.findByStatus(status, { page, limit });
   }
 
-  async getInvoice(id) {
-    return invoiceRepo.findById(id).lean();
-  }
-
-  async sendWhatsAppResend(invoiceId) {
-    const invoice = await InvoiceModel.findById(invoiceId);
+  async getById(id) {
+    const invoice = await invoiceRepo.findById(id, 'dealer');
     if (!invoice) throw ApiError.notFound('Invoice not found');
-    const dealer = await dealerRepo.findById(invoice.dealerId);
-    if (!dealer) throw ApiError.notFound('Dealer not found');
-    await notification.emit('invoice.created', { invoice: invoice.toObject(), dealer });
-    return { ok: true };
+    return invoice;
+  }
+
+  async getByDealer(dealerId, page = 1, limit = 20) {
+    return invoiceRepo.findByDealer(dealerId, { page, limit });
+  }
+
+  async getRevenueChart(days = 30) {
+    return invoiceRepo.getRevenueByDay(days);
+  }
+
+  async getMonthlySummary() {
+    return invoiceRepo.getMonthlySummary();
   }
 }
 

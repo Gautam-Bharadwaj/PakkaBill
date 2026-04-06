@@ -1,17 +1,26 @@
-const { createClient } = require('redis');
+const env = require('./env');
 
-/** Singleton Redis client (optional — Bull falls back if missing) */
-let client = null;
+let redis = null;
 
-async function getRedisClient() {
-  const url = process.env.REDIS_URL;
-  if (!url) return null;
-  if (!client) {
-    client = createClient({ url });
-    client.on('error', (err) => console.error('Redis error', err));
-    await client.connect();
+// Redis is optional — used for Bull job queues
+const getRedis = () => {
+  if (!redis) {
+    try {
+      const Redis = require('ioredis');
+      redis = new Redis(env.REDIS_URL, {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+        lazyConnect: true,
+      });
+      redis.on('error', (err) => {
+        console.warn('[Redis] Connection error (non-fatal):', err.message);
+      });
+    } catch (err) {
+      console.warn('[Redis] Not available, queues will run in-memory');
+      return null;
+    }
   }
-  return client;
-}
+  return redis;
+};
 
-module.exports = { getRedisClient };
+module.exports = { getRedis };

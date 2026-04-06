@@ -1,30 +1,35 @@
 class ApiError extends Error {
-  constructor(statusCode, message, code) {
+  constructor(statusCode, message, errors = []) {
     super(message);
     this.statusCode = statusCode;
-    this.code = code;
-    this.name = 'ApiError';
+    this.errors = errors;
+    this.isOperational = true;
+    Error.captureStackTrace(this, this.constructor);
   }
 
-  static isApiError(e) {
-    return e && (e instanceof ApiError || e.name === 'ApiError');
+  static badRequest(message, errors = []) {
+    return new ApiError(400, message, errors);
   }
 
-  static badRequest(msg, code) {
-    return new ApiError(400, msg, code);
+  static unauthorized(message = 'Unauthorized') {
+    return new ApiError(401, message);
   }
 
-  static unauthorized(msg) {
-    return new ApiError(401, msg || 'Unauthorized');
+  static forbidden(message = 'Forbidden') {
+    return new ApiError(403, message);
   }
 
-  static forbidden(msg) {
-    return new ApiError(403, msg || 'Forbidden');
+  static notFound(message = 'Resource not found') {
+    return new ApiError(404, message);
   }
 
-  static notFound(msg) {
-    return new ApiError(404, msg || 'Not found');
+  static conflict(message = 'Resource already exists') {
+    return new ApiError(409, message);
+  }
+
+  static internal(message = 'Internal server error') {
+    return new ApiError(500, message);
   }
 }
 
-module.exports = { ApiError };
+module.exports = ApiError;

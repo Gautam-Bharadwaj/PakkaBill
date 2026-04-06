@@ -1,81 +1,40 @@
-const { ApiError } = require('../utils/ApiError');
-const { ProductRepository } = require('../repositories/Product.repository');
-
-const productRepo = new ProductRepository();
-
-function computeManufacturingCost(costBreakdown) {
-  const c = costBreakdown || {};
-  return (c.paper || 0) + (c.printing || 0) + (c.binding || 0);
-}
-
-function marginPct(sellingPrice, manufacturingCost) {
-  if (!sellingPrice) return 0;
-  return ((sellingPrice - manufacturingCost) / sellingPrice) * 100;
-}
-
-function enrich(product) {
-  if (!product) return null;
-  const p = product.toObject ? product.toObject() : product;
-  return {
-    ...p,
-    profitMarginPercent: marginPct(p.sellingPrice, p.manufacturingCost),
-    lowStock: p.stockQuantity <= p.lowStockThreshold,
-  };
-}
+const productRepo = require('../repositories/Product.repository');
+const ApiError = require('../utils/ApiError');
 
 class ProductService {
-  async list({ archived } = {}) {
-    const filter = ProductRepository.notArchivedFilter();
-    if (archived === 'true') {
-      const products = await productRepo.model.find({ isArchived: true }).sort({ name: 1 }).lean();
-      return products.map(enrich);
-    }
-    const products = await productRepo.findAvailable().sort({ name: 1 }).lean();
-    return products.map(enrich);
+  async list(query = '', status = 'all', page = 1, limit = 20) {
+    return productRepo.search(query, status, { page, limit });
   }
 
   async getById(id) {
-    const p = await productRepo.findById(id).lean();
-    if (!p) throw ApiError.notFound('Product not found');
-    return enrich(p);
-  }
-
-  async create(body) {
-    const costBreakdown = body.costBreakdown || {};
-    const manufacturingCost = computeManufacturingCost(costBreakdown);
-    const product = await productRepo.create({
-      ...body,
-      costBreakdown,
-      manufacturingCost,
-      isArchived: false,
-    });
-    return product;
-  }
-
-  async update(id, body) {
-    const existing = await productRepo.findById(id);
-    if (!existing) throw ApiError.notFound('Product not found');
-    const costBreakdown = {
-      ...(existing.costBreakdown?.toObject ? existing.costBreakdown.toObject() : existing.costBreakdown),
-      ...(body.costBreakdown || {}),
-    };
-    const manufacturingCost = computeManufacturingCost(costBreakdown);
-    const product = await productRepo.updateById(
-      id,
-      {
-        ...body,
-        costBreakdown,
-        manufacturingCost,
-      },
-      { new: true, runValidators: true }
-    );
-    return product;
-  }
-
-  async archive(id) {
-    const product = await productRepo.updateById(id, { isArchived: true }, { new: true });
+    const product = await productRepo.findById(id);
     if (!product) throw ApiError.notFound('Product not found');
     return product;
+  }
+
+  async create(data) {
+    const existing = await productRepo.findOne({ name: data.name });
+    if (existing) throw ApiError.conflict('Product with this name already exists');
+    return productRepo.create(data);
+  }
+
+  async update(id, data) {
+    await this.getById(id);
+    return productRepo.update(id, data);
+  }
+
+  async delete(id) {
+    await this.getById(id);
+    // PATTERN: Soft delete — archive instead of remove
+    return productRepo.update(id, { status: 'archived' });
+  }
+
+  async getLowStock() {
+    return productRepo.findLowStock();
+  }
+
+  async getTopProducts(limit = 5) {
+    return productRepo.getTopProducts(limit);
   }
 }
 

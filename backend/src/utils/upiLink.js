@@ -1,14 +1,16 @@
 /**
- * UPI deep link per NPCI-style params: pa, pn, am, tn
+ * Generates a UPI deep-link / QR-code string
+ * upi://pay?pa=VPA&pn=NAME&am=AMOUNT&tn=NOTE&cu=INR
  */
-function buildUpiPayUri({ pa, pn, am, tn }) {
+const generateUpiLink = ({ vpa, name, amount, note = '' }) => {
   const params = new URLSearchParams({
-    pa: pa || '',
-    pn: pn || '',
-    am: String(am ?? ''),
-    tn: tn || '',
+    pa: vpa,
+    pn: name,
+    am: amount.toFixed(2),
+    tn: note.substring(0, 100),
+    cu: 'INR',
   });
   return `upi://pay?${params.toString()}`;
-}
+};
 
-module.exports = { buildUpiPayUri };
+module.exports = { generateUpiLink };

@@ -1,12 +1,26 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
-    phone: { type: String, required: true, unique: true, index: true },
-    pinHash: { type: String, required: true },
-    refreshTokenHash: { type: String, default: null },
+    name: { type: String, required: true, default: 'Admin' },
+    pin: { type: String, required: true, select: false },
+    role: { type: String, enum: ['admin'], default: 'admin' },
+    upiVpa: { type: String, default: '' },
+    upiName: { type: String, default: 'Billo Billings' },
+    refreshToken: { type: String, select: false },
   },
   { timestamps: true }
 );
+
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('pin')) return next();
+  this.pin = await bcrypt.hash(this.pin, 12);
+  next();
+});
+
+userSchema.methods.comparePin = async function (candidatePin) {
+  return bcrypt.compare(candidatePin, this.pin);
+};
 
 module.exports = mongoose.model('User', userSchema);

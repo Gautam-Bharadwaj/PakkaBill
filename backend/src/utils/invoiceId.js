@@ -1,25 +1,28 @@
-const InvoiceModel = require('../models/Invoice.model');
+const { format } = require('date-fns');
 
-async function generateInvoiceId() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const prefix = `INV-${y}${m}${day}-`;
+/**
+ * Generates a human-readable invoice ID
+ * Format: INV-YYYYMMDD-XXXXX (5-digit zero-padded sequence per day)
+ */
+const Invoice = require('../models/Invoice.model');
 
-  const last = await InvoiceModel.findOne({ invoiceId: new RegExp(`^${prefix}`) })
-    .sort({ invoiceId: -1 })
-    .select('invoiceId')
-    .lean();
+const generateInvoiceId = async () => {
+  const today = format(new Date(), 'yyyyMMdd');
+  const prefix = `INV-${today}-`;
+
+  const last = await Invoice.findOne(
+    { invoiceId: { $regex: `^${prefix}` } },
+    { invoiceId: 1 },
+    { sort: { createdAt: -1 } }
+  );
 
   let seq = 1;
-  if (last?.invoiceId) {
-    const part = last.invoiceId.split('-').pop();
-    const n = parseInt(part, 10);
-    if (!Number.isNaN(n)) seq = n + 1;
+  if (last) {
+    const parts = last.invoiceId.split('-');
+    seq = parseInt(parts[parts.length - 1], 10) + 1;
   }
-  const suffix = String(seq).padStart(4, '0');
-  return `${prefix}${suffix}`;
-}
+
+  return `${prefix}${String(seq).padStart(5, '0')}`;
+};
 
 module.exports = { generateInvoiceId };

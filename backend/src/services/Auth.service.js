@@ -1,105 +1,72 @@
+const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
-const { UserRepository } = require('../repositories/User.repository');
-const { ApiError } = require('../utils/ApiError');
-const { signAccess, signRefresh, verifyRefresh } = require('../utils/jwt');
-
-const userRepo = new UserRepository();
-
-function hashRefresh(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
-}
-
-const COOKIE_NAME = 'refreshToken';
-
-function getRefreshFromRequest(req) {
-  return req.body?.refreshToken || req.cookies?.[COOKIE_NAME];
-}
+const User = require('../models/User.model');
+const env = require('../config/env');
+const ApiError = require('../utils/ApiError');
 
 class AuthService {
-  async register({ phone, pin }) {
-    const count = await userRepo.countUsers();
-    if (count > 0) throw ApiError.forbidden('Registration disabled — owner already exists');
-
-    const pinHash = await bcrypt.hash(pin, 12);
-    const user = await userRepo.create({ phone, pinHash });
-    const tokens = await this.#issueTokens(user);
-    return { user: { phone: user.phone }, ...tokens };
+  _signAccess(id) {
+    return jwt.sign({ id }, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN });
   }
 
-  async login({ phone, pin }) {
-    const user = await userRepo.findByPhone(phone);
-    if (!user) throw ApiError.unauthorized('Invalid credentials');
-    const ok = await bcrypt.compare(pin, user.pinHash);
-    if (!ok) throw ApiError.unauthorized('Invalid credentials');
-    return this.#issueTokens(user);
+  _signRefresh(id) {
+    return jwt.sign({ id }, env.JWT_REFRESH_SECRET, { expiresIn: env.JWT_REFRESH_EXPIRES_IN });
   }
 
-  async #issueTokens(user) {
-    const accessToken = signAccess(
-      { sub: String(user._id), phone: user.phone },
-      process.env.JWT_ACCESS_SECRET,
-      process.env.JWT_ACCESS_EXPIRES || '15m'
-    );
-    const refreshToken = signRefresh(
-      { sub: String(user._id) },
-      process.env.JWT_REFRESH_SECRET,
-      process.env.JWT_REFRESH_EXPIRES || '7d'
-    );
-    user.refreshTokenHash = hashRefresh(refreshToken);
-    await user.save();
-    return { accessToken, refreshToken, user: { phone: user.phone } };
+  async ensureAdminExists() {
+    const count = await User.countDocuments();
+    if (count === 0) {
+      const user = new User({ name: 'Admin', pin: env.ADMIN_PIN });
+      await user.save();
+      console.log('[Auth] Default admin created');
+    }
   }
 
-  async refreshTokens(req) {
-    const refreshToken = getRefreshFromRequest(req);
-    if (!refreshToken) throw ApiError.unauthorized('Invalid refresh token');
-    let payload;
+  async login(pin) {
+    const user = await User.findOne().select('+pin +refreshToken');
+    if (!user) throw ApiError.unauthorized('No admin account found');
+
+    const valid = await user.comparePin(pin);
+    if (!valid) throw ApiError.unauthorized('Invalid PIN');
+
+    const accessToken = this._signAccess(user._id);
+    const refreshToken = this._signRefresh(user._id);
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: { id: user._id, name: user.name, role: user.role },
+    };
+  }
+
+  async refresh(refreshToken) {
+    if (!refreshToken) throw ApiError.unauthorized('No refresh token');
+
+    let decoded;
     try {
-      payload = verifyRefresh(refreshToken, process.env.JWT_REFRESH_SECRET);
+      decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET);
     } catch {
-      throw ApiError.unauthorized('Invalid refresh token');
+      throw ApiError.unauthorized('Invalid or expired refresh token');
     }
-    const user = await userRepo.findById(payload.sub);
-    if (!user || user.refreshTokenHash !== hashRefresh(refreshToken)) {
-      throw ApiError.unauthorized('Invalid refresh token');
+
+    const user = await User.findById(decoded.id).select('+refreshToken');
+    if (!user || user.refreshToken !== refreshToken) {
+      throw ApiError.unauthorized('Token reuse detected');
     }
-    const accessToken = signAccess(
-      { sub: String(user._id), phone: user.phone },
-      process.env.JWT_ACCESS_SECRET,
-      process.env.JWT_ACCESS_EXPIRES || '15m'
-    );
-    const newRefresh = signRefresh(
-      { sub: String(user._id) },
-      process.env.JWT_REFRESH_SECRET,
-      process.env.JWT_REFRESH_EXPIRES || '7d'
-    );
-    user.refreshTokenHash = hashRefresh(newRefresh);
-    await user.save();
-    return { accessToken, refreshToken: newRefresh };
+
+    const accessToken = this._signAccess(user._id);
+    const newRefreshToken = this._signRefresh(user._id);
+    user.refreshToken = newRefreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    return { accessToken, refreshToken: newRefreshToken };
   }
 
   async logout(userId) {
-    const user = await userRepo.findById(userId);
-    if (user) {
-      user.refreshTokenHash = null;
-      await user.save();
-    }
-    return { ok: true };
-  }
-
-  setRefreshCookie(res, refreshToken) {
-    const maxAge = 7 * 24 * 60 * 60 * 1000;
-    res.cookie(COOKIE_NAME, refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge,
-    });
-  }
-
-  clearRefreshCookie(res) {
-    res.clearCookie(COOKIE_NAME);
+    await User.findByIdAndUpdate(userId, { refreshToken: null });
   }
 }
 

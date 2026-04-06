@@ -2,24 +2,22 @@ const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema(
   {
-    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Dealer', default: null, index: true },
-    invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', default: null, index: true },
+    to: { type: String, required: true },
     type: {
       type: String,
-      enum: ['invoice', 'payment', 'reminder', 'low_stock', 'custom'],
-      default: 'custom',
-      index: true,
+      enum: ['invoice', 'reminder', 'payment_receipt'],
+      required: true,
     },
-    kind: { type: String, default: '' },
-    phone: { type: String, required: true, index: true },
-    content: { type: String, required: true },
-    toPhone: { type: String, default: '' },
-    body: { type: String, default: '' },
-    templateKey: { type: String, default: '' },
-    relatedInvoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', default: null },
-    status: { type: String, enum: ['queued', 'sent', 'failed'], default: 'queued', index: true },
+    invoice: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
+    dealer: { type: mongoose.Schema.Types.ObjectId, ref: 'Dealer' },
+    body: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ['pending', 'sent', 'failed'],
+      default: 'pending',
+    },
     error: { type: String, default: '' },
-    sentAt: { type: Date, default: null },
+    sentAt: { type: Date },
   },
   { timestamps: true }
 );

@@ -1,37 +1,52 @@
 const dealerService = require('../services/Dealer.service');
-const { asyncHandler } = require('../utils/asyncHandler');
+const whatsappService = require('../services/WhatsApp.service');
+const ApiResponse = require('../utils/ApiResponse');
 
-exports.list = asyncHandler(async (req, res) => {
-  const dealers = await dealerService.list(req.query);
-  res.json({ dealers });
-});
+class DealerController {
+  async list(req, res, next) {
+    try {
+      const { q = '', status = 'all', page = 1, limit = 20 } = req.query;
+      const result = await dealerService.list(q, status, Number(page), Number(limit));
+      ApiResponse.success(res, result.data, 'Dealers fetched', 200, result.pagination);
+    } catch (err) { next(err); }
+  }
 
-exports.getOne = asyncHandler(async (req, res) => {
-  const dealer = await dealerService.getById(req.params.id);
-  res.json({ dealer });
-});
+  async getById(req, res, next) {
+    try {
+      const dealer = await dealerService.getById(req.params.id);
+      ApiResponse.success(res, dealer, 'Dealer fetched');
+    } catch (err) { next(err); }
+  }
 
-exports.create = asyncHandler(async (req, res) => {
-  const dealer = await dealerService.create(req.body);
-  res.status(201).json({ dealer });
-});
+  async create(req, res, next) {
+    try {
+      const dealer = await dealerService.create(req.body);
+      ApiResponse.created(res, dealer, 'Dealer created');
+    } catch (err) { next(err); }
+  }
 
-exports.update = asyncHandler(async (req, res) => {
-  const dealer = await dealerService.update(req.params.id, req.body);
-  res.json({ dealer });
-});
+  async update(req, res, next) {
+    try {
+      const dealer = await dealerService.update(req.params.id, req.body);
+      ApiResponse.success(res, dealer, 'Dealer updated');
+    } catch (err) { next(err); }
+  }
 
-exports.remove = asyncHandler(async (req, res) => {
-  const result = await dealerService.softDelete(req.params.id);
-  res.json(result);
-});
+  async delete(req, res, next) {
+    try {
+      await dealerService.delete(req.params.id);
+      ApiResponse.success(res, null, 'Dealer deleted');
+    } catch (err) { next(err); }
+  }
 
-exports.invoices = asyncHandler(async (req, res) => {
-  const invoices = await dealerService.purchaseHistory(req.params.id);
-  res.json({ invoices });
-});
+  async sendReminder(req, res, next) {
+    try {
+      const dealer = await dealerService.getById(req.params.id);
+      const message = whatsappService.buildReminderMessage(dealer, { invoiceId: 'PENDING', amountDue: dealer.pendingAmount });
+      const link = whatsappService.getWhatsAppLink(dealer.phone, message);
+      ApiResponse.success(res, { link, message }, 'Reminder link generated');
+    } catch (err) { next(err); }
+  }
+}
 
-exports.payments = asyncHandler(async (req, res) => {
-  const payments = await dealerService.paymentsForDealer(req.params.id);
-  res.json({ payments });
-});
+module.exports = new DealerController();
