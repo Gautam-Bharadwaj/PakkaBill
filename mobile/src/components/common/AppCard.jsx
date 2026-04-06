@@ -3,9 +3,14 @@ import { View, StyleSheet } from 'react-native';
 import { Colors } from '../../theme/colors';
 import { Spacing, Radius, Shadow } from '../../theme/spacing';
 
-export default function AppCard({ children, style, padded = true }) {
+export default function AppCard({ children, style, padded = true, shadow = 'sm' }) {
   return (
-    <View style={[styles.card, padded && styles.padded, style]}>
+    <View style={[
+      styles.card, 
+      shadow && Shadow[shadow], 
+      padded && styles.padded, 
+      style
+    ]}>
       {children}
     </View>
   );
@@ -13,11 +18,13 @@ export default function AppCard({ children, style, padded = true }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.cardBackground,
-    borderRadius: Radius.lg,
-    ...Shadow.md,
+    backgroundColor: Colors.surface, // #121212 per Carbon Dark
+    borderRadius: Radius.lg, // 20px
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: Colors.border, // #2A2A2A for industrial feel
   },
   padded: {
-    padding: Spacing.base,
+    padding: Spacing.base, // 16px
   },
 });

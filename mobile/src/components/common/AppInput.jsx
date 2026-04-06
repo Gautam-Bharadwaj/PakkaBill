@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
@@ -14,23 +14,32 @@ export default function AppInput({
   inputStyle,
   ...props
 }) {
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputRow, error && styles.inputError]}>
-        {prefix && <Text style={styles.prefix}>{prefix}</Text>}
+      <View style={[
+        styles.inputRow, 
+        isFocused && styles.inputFocused, 
+        error && styles.inputError
+      ]}>
+        {prefix && <View style={styles.prefix}>{prefix}</View>}
         <TextInput
           style={[styles.input, inputStyle]}
           placeholderTextColor={Colors.textMuted}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          selectionColor={Colors.primary}
           {...props}
         />
         {suffix && (
-          <TouchableOpacity onPress={onSuffixPress} disabled={!onSuffixPress}>
-            {typeof suffix === 'string' ? <Text style={styles.suffix}>{suffix}</Text> : suffix}
+          <TouchableOpacity onPress={onSuffixPress} disabled={!onSuffixPress} style={styles.suffixWrap}>
+            {typeof suffix === 'string' ? <Text style={styles.suffixText}>{suffix}</Text> : suffix}
           </TouchableOpacity>
         )}
       </View>
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 }
@@ -39,39 +48,47 @@ const styles = StyleSheet.create({
   container: { marginBottom: Spacing.md },
   label: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.textSecondary,
+    fontWeight: '700',
+    color: Colors.white,
     marginBottom: Spacing.xs,
+    marginLeft: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.white,
+    borderColor: Colors.border, // #2A2A2A
+    borderRadius: 12, // 12px per industrial look
+    backgroundColor: Colors.surface, // #121212
     paddingHorizontal: Spacing.md,
+    height: 52, // Slightly taller for dark mode
   },
-  inputError: { borderColor: Colors.danger },
+  inputFocused: { borderColor: Colors.primary },
+  inputError: { borderColor: Colors.error },
   prefix: {
-    fontSize: Typography.fontSize.md,
-    color: Colors.textSecondary,
     marginRight: Spacing.xs,
   },
   input: {
     flex: 1,
     fontSize: Typography.fontSize.md,
-    color: Colors.text,
-    paddingVertical: Spacing.md,
+    color: Colors.white,
+    height: '100%',
+    fontWeight: '500',
   },
-  suffix: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.primary,
+  suffixWrap: {
     marginLeft: Spacing.xs,
   },
-  error: {
+  suffixText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  errorText: {
     fontSize: Typography.fontSize.xs,
-    color: Colors.danger,
-    marginTop: Spacing.xs,
+    color: Colors.error,
+    marginTop: 6,
+    marginLeft: 2,
   },
 });
