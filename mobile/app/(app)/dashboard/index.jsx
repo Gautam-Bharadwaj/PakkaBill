@@ -52,7 +52,7 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor={Colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.greetingText}>{getGreeting()}, RAHUL 👋</Text>
+        <Text style={styles.greetingText}>{getGreeting()}, RAHUL</Text>
 
         {/* Carbon Dark Revenue Card */}
         <AppCard style={styles.heroCard} shadow="lg">
