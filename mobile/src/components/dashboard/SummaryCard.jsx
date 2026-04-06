@@ -5,17 +5,11 @@ import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { Spacing } from '../../theme/spacing';
 
-export default function SummaryCard({ title, value, icon, color = Colors.primary, change }) {
+export default function SummaryCard({ title, value, color = Colors.primary }) {
   return (
-    <AppCard style={[styles.card, { borderTopColor: color, borderTopWidth: 3 }]}>
-      <View style={styles.row}>
-        {change !== undefined && (
-          <Text style={[styles.change, { color: change >= 0 ? Colors.success : Colors.danger }]}>
-            {change >= 0 ? '+' : '-'} {Math.abs(change)}%
-          </Text>
-        )}
-      </View>
-      <Text style={[styles.value, { color }]} numberOfLines={1} adjustsFontSizeToFit>
+    <AppCard style={styles.card} shadow="sm">
+      <View style={[styles.indicator, { backgroundColor: color }]} />
+      <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
       <Text style={styles.title}>{title}</Text>
@@ -24,20 +18,31 @@ export default function SummaryCard({ title, value, icon, color = Colors.primary
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, minWidth: '45%', margin: Spacing.xs },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
-  icon: { fontSize: 24 },
+  card: { 
+    flex: 1, 
+    minWidth: '45%', 
+    padding: 20,
+    backgroundColor: Colors.surface, // #121212
+    borderWidth: 1.5,
+    borderColor: Colors.border, // #2A2A2A
+  },
+  indicator: {
+    width: 24,
+    height: 4,
+    borderRadius: 2,
+    marginBottom: 12,
+  },
   value: {
-    fontSize: Typography.fontSize['2xl'],
-    fontWeight: Typography.fontWeight.extrabold,
-    marginBottom: 2,
+    fontSize: 20,
+    fontWeight: '900',
+    color: Colors.white,
+    marginBottom: 4,
   },
   title: {
-    fontSize: Typography.fontSize.xs,
+    fontSize: 10,
     color: Colors.textSecondary,
-    fontWeight: Typography.fontWeight.medium,
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
-  change: { fontSize: Typography.fontSize.xs, fontWeight: Typography.fontWeight.bold },
 });
