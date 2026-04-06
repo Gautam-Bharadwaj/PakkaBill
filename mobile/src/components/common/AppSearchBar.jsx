@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { Spacing, Radius, Shadow } from '../../theme/spacing';
@@ -8,7 +8,7 @@ import { Spacing, Radius, Shadow } from '../../theme/spacing';
 export default function AppSearchBar({ value, onChangeText, placeholder = 'Search...', onClear, style }) {
   return (
     <View style={[styles.container, style]}>
-      <Ionicons name="search-outline" size={18} color={Colors.textMuted} style={styles.icon} />
+      <Feather name="search" size={18} color={Colors.primary} style={styles.icon} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -17,10 +17,11 @@ export default function AppSearchBar({ value, onChangeText, placeholder = 'Searc
         style={styles.input}
         returnKeyType="search"
         clearButtonMode="never"
+        selectionColor={Colors.primary}
       />
       {value?.length > 0 && (
-        <TouchableOpacity onPress={onClear || (() => onChangeText(''))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+        <TouchableOpacity onPress={onClear || (() => onChangeText(''))} style={styles.clearBtn}>
+          <Feather name="x-circle" size={18} color={Colors.textMuted} />
         </TouchableOpacity>
       )}
     </View>
@@ -31,16 +32,21 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderRadius: Radius.full,
+    backgroundColor: Colors.surface, // Carbon Dark surface instead of White
+    borderRadius: Radius.md, // Industrial radius
     paddingHorizontal: Spacing.md,
-    ...Shadow.sm,
-    height: 44,
+    height: 48,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
   },
   icon: { marginRight: Spacing.sm },
   input: {
     flex: 1,
-    fontSize: Typography.fontSize.md,
-    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.white,
+  },
+  clearBtn: {
+    padding: 2,
   },
 });
