@@ -1,0 +1,15 @@
+{
+  "name": "billobillings",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["backend", "web"],
+  "scripts": {
+    "backend": "cd backend && npm run dev",
+    "web": "cd web && npm run dev",
+    "dev": "concurrently \"npm run backend\" \"npm run web\"",
+    "install:all": "cd backend && npm install && cd ../web && npm install && cd ../mobile && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
