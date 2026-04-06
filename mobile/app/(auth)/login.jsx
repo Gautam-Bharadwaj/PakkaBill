@@ -3,13 +3,13 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
   KeyboardAvoidingView, Platform, SafeAreaView, StatusBar,
 } from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { showMessage } from 'react-native-flash-message';
+import { Feather } from '@expo/vector-icons';
 import useAuthStore from '../../src/store/useAuthStore';
-import AppButton from '../../src/components/common/AppButton';
 import { Colors } from '../../src/theme/colors';
 import { Typography } from '../../src/theme/typography';
 import { Spacing, Radius, Shadow } from '../../src/theme/spacing';
@@ -22,7 +22,7 @@ export default function LoginScreen() {
   const [pin, setPin] = useState('');
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const { login, isLoading } = useAuthStore();
-  const { handleSubmit, setValue, formState: { errors } } = useForm({ resolver: zodResolver(schema) });
+  const { setValue, formState: { errors } } = useForm({ resolver: zodResolver(schema) });
 
   const shake = () => {
     Animated.sequence([
@@ -70,21 +70,24 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
-      {/* Top blue section */}
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
+      
+      {/* Carbon Dark Header */}
       <View style={styles.topSection}>
-        <View style={styles.logoContainer} />
-        <Text style={styles.appName}>Billo Billings</Text>
-        <Text style={styles.tagline}>Smart wholesale billing</Text>
+        <View style={styles.logoFrame}>
+          <Feather name="zap" size={40} color={Colors.primary} />
+        </View>
+        <Text style={styles.appName}>PAKKABILL</Text>
+        <Text style={styles.tagline}>PREMIUM BILLING SYSTEM</Text>
       </View>
 
-      {/* White card section */}
+      {/* Industrial Login Card */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <View style={styles.card}>
-          <Text style={styles.heading}>Welcome Back</Text>
-          <Text style={styles.subheading}>Enter your 6-digit PIN</Text>
+          <Text style={styles.heading}>SECURITY PIN</Text>
+          <Text style={styles.subheading}>PROVIDE YOUR 6-DIGIT AUTHORIZATION</Text>
 
-          {/* PIN dots */}
+          {/* Bold PIN Indicators */}
           <Animated.View style={[styles.pinRow, { transform: [{ translateX: shakeAnim }] }]}>
             {Array.from({ length: 6 }).map((_, i) => (
               <View key={i} style={[styles.pinDot, pin.length > i && styles.pinDotFilled]} />
@@ -93,7 +96,7 @@ export default function LoginScreen() {
 
           {errors.pin && <Text style={styles.error}>{errors.pin.message}</Text>}
 
-          {/* Numpad */}
+          {/* High-Contrast Numpad */}
           <View style={styles.numpad}>
             {NUMPAD.map((key) => (
               <TouchableOpacity
@@ -107,9 +110,13 @@ export default function LoginScreen() {
                 disabled={isLoading}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.keyText, key === '✓' && styles.keySubmitText]}>
-                  {isLoading && key === '✓' ? '...' : key}
-                </Text>
+                {key === '✓' && isLoading ? (
+                   <Text style={[styles.keyText, styles.keySubmitText]}>...</Text>
+                ) : (
+                  <Text style={[styles.keyText, key === '✓' && styles.keySubmitText, key === '⌫' && styles.keyBackText]}>
+                    {key}
+                  </Text>
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -120,61 +127,95 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.primary },
+  root: { flex: 1, backgroundColor: Colors.black },
   flex: { flex: 1 },
   topSection: {
-    flex: 0.4,
+    flex: 0.35,
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: Spacing['3xl'],
   },
-  logoContainer: { width: 64, height: 64, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, marginBottom: Spacing.md },
-  appName: {
-    fontSize: Typography.fontSize['3xl'],
-    fontWeight: Typography.fontWeight.extrabold,
-    color: Colors.white,
-    letterSpacing: 1,
-  },
-  tagline: { color: 'rgba(255,255,255,0.7)', fontSize: Typography.fontSize.md, marginTop: Spacing.xs },
-  card: {
-    flex: 1,
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingTop: Spacing['2xl'],
-    paddingHorizontal: Spacing['2xl'],
-    alignItems: 'center',
-    ...Shadow.lg,
-  },
-  heading: {
-    fontSize: Typography.fontSize['2xl'],
-    fontWeight: Typography.fontWeight.extrabold,
-    color: Colors.text,
-  },
-  subheading: { fontSize: Typography.fontSize.md, color: Colors.textSecondary, marginTop: Spacing.xs, marginBottom: Spacing['2xl'] },
-  pinRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.sm },
-  pinDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    backgroundColor: Colors.white,
-  },
-  pinDotFilled: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  error: { color: Colors.danger, fontSize: Typography.fontSize.sm, marginBottom: Spacing.md },
-  numpad: { flexDirection: 'row', flexWrap: 'wrap', width: '100%', marginTop: Spacing.xl, gap: Spacing.sm, justifyContent: 'center' },
-  key: {
-    width: '30%',
-    aspectRatio: 1.8,
+  logoFrame: { 
+    width: 80, 
+    height: 80, 
+    backgroundColor: Colors.surface, 
+    borderRadius: Radius.lg, 
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    ...Shadow.sm,
+    marginBottom: Spacing.md,
+    borderWidth: 2,
+    borderColor: Colors.primary, // Orange accent border
   },
-  keySubmit: { backgroundColor: Colors.primary },
-  keyBack: { backgroundColor: Colors.dangerLight },
-  keyText: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.bold, color: Colors.text },
-  keySubmitText: { color: Colors.white },
+  appName: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: Colors.white,
+    letterSpacing: 2,
+  },
+  tagline: { 
+    color: Colors.primary, 
+    fontSize: 10, 
+    fontWeight: '800', 
+    marginTop: 4, 
+    letterSpacing: 3,
+    opacity: 0.8 
+  },
+  card: {
+    flex: 1,
+    backgroundColor: Colors.surface, // #121212
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    paddingTop: Spacing['3xl'],
+    paddingHorizontal: Spacing['2xl'],
+    alignItems: 'center',
+    borderTopWidth: 2,
+    borderTopColor: Colors.border,
+  },
+  heading: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: Colors.white,
+    letterSpacing: 2,
+  },
+  subheading: { 
+    fontSize: 10, 
+    color: Colors.textSecondary, 
+    marginTop: 8, 
+    marginBottom: Spacing['3xl'],
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  pinRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: 40 },
+  pinDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.black,
+  },
+  pinDotFilled: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  error: { color: Colors.error, fontSize: Typography.fontSize.sm, marginBottom: Spacing.md },
+  numpad: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    width: '100%', 
+    gap: Spacing.sm, 
+    justifyContent: 'center' 
+  },
+  key: {
+    width: '30%',
+    aspectRatio: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.black,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  keySubmit: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  keyBack: { backgroundColor: 'rgba(255, 51, 51, 0.1)', borderColor: Colors.error },
+  keyText: { fontSize: 22, fontWeight: '700', color: Colors.white },
+  keySubmitText: { color: Colors.black, fontWeight: '900' },
+  keyBackText: { color: Colors.error },
 });
