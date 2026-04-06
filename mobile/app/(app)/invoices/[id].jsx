@@ -1,137 +1,262 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Linking,
+  ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Linking, Share, Dimensions, StatusBar, Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { Feather, FontAwesome } from '@expo/vector-icons';
 import { showMessage } from 'react-native-flash-message';
 import useInvoiceStore from '../../../src/store/useInvoiceStore';
-import InvoiceSummary from '../../../src/components/invoice/InvoiceSummary';
-import PaymentStatusBadge from '../../../src/components/invoice/PaymentStatusBadge';
+import AppHeader from '../../../src/components/common/AppHeader';
 import AppLoader from '../../../src/components/common/AppLoader';
 import AppError from '../../../src/components/common/AppError';
 import AppButton from '../../../src/components/common/AppButton';
-import AppCard from '../../../src/components/common/AppCard';
 import { Colors } from '../../../src/theme/colors';
 import { Typography } from '../../../src/theme/typography';
-import { Spacing } from '../../../src/theme/spacing';
+import { Spacing, Radius, Shadow } from '../../../src/theme/spacing';
 import { formatINR } from '../../../src/utils/currency';
 import { formatDate } from '../../../src/utils/date';
-import { sendInvoiceWhatsApp, getInvoicePdfUrl } from '../../../src/api/invoice.api';
-import { getPaymentsByInvoice } from '../../../src/api/payment.api';
+import { getInvoicePdfUrl } from '../../../src/api/invoice.api';
 import { openWhatsApp, buildInvoiceMessage } from '../../../src/utils/whatsapp';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function InvoiceDetailScreen() {
   const { id } = useLocalSearchParams();
   const { currentInvoice: invoice, isLoading, error, fetchInvoice } = useInvoiceStore();
-  const [payments, setPayments] = useState([]);
 
   useEffect(() => {
     fetchInvoice(id);
-    getPaymentsByInvoice(id).then(({ data }) => setPayments(data.data || [])).catch(() => {});
   }, [id]);
 
-  if (isLoading || !invoice) return <AppLoader fullScreen />;
+  if (isLoading || !invoice) return <AppLoader fullScreen label="Finalizing Receipt Details..." />;
   if (error) return <AppError message={error} onRetry={() => fetchInvoice(id)} />;
 
-  const handleWhatsApp = () => openWhatsApp(invoice.dealerPhone, buildInvoiceMessage(invoice));
+  const handleWhatsApp = () => {
+    const message = buildInvoiceMessage(invoice);
+    openWhatsApp(invoice.dealerPhone, message);
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: buildInvoiceMessage(invoice),
+        url: getInvoicePdfUrl(id),
+        title: `Bill ${invoice.invoiceId}`,
+      });
+    } catch (err) {
+      showMessage({ message: 'Sharing failed', type: 'danger' });
+    }
+  };
+
   const handlePDF = () => Linking.openURL(`${getInvoicePdfUrl(id)}`);
 
+  const RightAction = (
+    <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
+      <Feather name="share-2" size={20} color={Colors.primary} />
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
+      
+      {/* Normalized Top Navbar */}
+      <AppHeader 
+        title="BILL PREVIEW" 
+        showBack={true} 
+        onBack={() => router.back()} 
+        rightAction={RightAction}
+      />
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Nav */}
-        <TouchableOpacity onPress={() => router.back()}><Text style={styles.back}>← Back</Text></TouchableOpacity>
-
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.id}>{invoice.invoiceId}</Text>
-            <Text style={styles.date}>{formatDate(invoice.createdAt)}</Text>
-          </View>
-          <PaymentStatusBadge status={invoice.paymentStatus} />
-        </View>
-
-        {/* Dealer */}
-        <AppCard style={styles.dealerCard}>
-          <Text style={styles.dealerName}>{invoice.dealerName}</Text>
-          <Text style={styles.dealerShop}>{invoice.dealerShop}</Text>
-          <TouchableOpacity onPress={() => Linking.openURL(`tel:${invoice.dealerPhone}`)}>
-            <Text style={styles.dealerPhone}>Ph: {invoice.dealerPhone}</Text>
-          </TouchableOpacity>
-        </AppCard>
-
-        {/* Line items */}
-        <Text style={styles.sectionTitle}>Items</Text>
-        {invoice.lineItems?.map((item, i) => (
-          <View key={i} style={styles.lineRow}>
-            <Text style={styles.lineName}>{item.productName}</Text>
-            <Text style={styles.lineQty}>×{item.quantity}</Text>
-            <Text style={styles.lineTotal}>{formatINR(item.lineTotal)}</Text>
-          </View>
-        ))}
-
-        {/* Summary */}
-        <InvoiceSummary
-          subtotal={invoice.subtotal}
-          discountTotal={invoice.discountTotal}
-          gstRate={invoice.gstRate}
-          gstAmount={invoice.gstAmount}
-          totalAmount={invoice.totalAmount}
-          totalProfit={invoice.totalProfit}
-          amountPaid={invoice.amountPaid}
-          amountDue={invoice.amountDue}
-        />
-
-        {/* Actions */}
-        <View style={styles.actionsGrid}>
-          <AppButton title="Download PDF" onPress={handlePDF} variant="secondary" style={styles.actionBtn} />
-          <AppButton title="WhatsApp" onPress={handleWhatsApp} variant="success" style={styles.actionBtn} />
-          {invoice.amountDue > 0 && (
-            <AppButton title="Record Payment" onPress={() => router.push(`/(app)/payments/${id}`)} style={styles.actionBtn} />
-          )}
-          <AppButton title="Generate QR" onPress={() => router.push(`/(app)/payments/qr/${id}`)} variant="secondary" style={styles.actionBtn} />
-        </View>
-
-        {/* Payment history */}
-        {payments.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Payment History</Text>
-            {payments.map((p) => (
-              <View key={p._id} style={styles.payRow}>
-                <View>
-                  <Text style={styles.payMode}>{p.mode.toUpperCase()}</Text>
-                  <Text style={styles.payDate}>{formatDate(p.createdAt, 'dd MMM yyyy, hh:mm a')}</Text>
-                </View>
-                <Text style={styles.payAmount}>{formatINR(p.amount)}</Text>
+        {/* Modern Industrial Receipt */}
+        <View style={styles.receiptContainer}>
+          <View style={styles.receiptBody}>
+            {/* Business Header */}
+            <View style={styles.receiptHeader}>
+              <View style={styles.logoBadge}>
+                <Feather name="zap" size={32} color={Colors.black} />
               </View>
-            ))}
-          </>
-        )}
+              <Text style={styles.businessName}>PAKKABILL CORP</Text>
+              <Text style={styles.businessSubs}>SECURE TRANSACTION RECORD</Text>
+            </View>
+
+            <View style={styles.thickDivider} />
+
+            {/* Meta Section */}
+            <View style={styles.metaBox}>
+              <View>
+                <Text style={styles.metaLabel}>INVOICE ID</Text>
+                <Text style={styles.metaValue}>#{invoice.invoiceId.split('-').pop()}</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.metaLabel}>TIMESTAMP</Text>
+                <Text style={styles.metaValue}>{formatDate(invoice.createdAt, 'dd MMM yyyy • hh:mm a')}</Text>
+              </View>
+            </View>
+
+            <View style={styles.dashedDivider} />
+
+            {/* Itemized Table */}
+            <View style={styles.table}>
+               <View style={styles.tableHead}>
+                 <Text style={[styles.headText, { flex: 2 }]}>SKU / PRODUCT</Text>
+                 <Text style={[styles.headText, { flex: 0.5, textAlign: 'center' }]}>QTY</Text>
+                 <Text style={[styles.headText, { flex: 1.5, textAlign: 'right' }]}>TOTAL</Text>
+               </View>
+               {invoice.lineItems?.map((item, i) => (
+                 <View key={i} style={styles.tableRow}>
+                   <Text style={[styles.rowName, { flex: 2 }]} numberOfLines={2}>{item.productName}</Text>
+                   <Text style={[styles.rowQty, { flex: 0.5, textAlign: 'center' }]}>{item.quantity}</Text>
+                   <Text style={[styles.rowPrice, { flex: 1.5, textAlign: 'right' }]}>{formatINR(item.lineTotal)}</Text>
+                 </View>
+               ))}
+            </View>
+
+            <View style={styles.dashedDivider} />
+
+            {/* Bill Summary */}
+            <View style={styles.summaryBox}>
+               <View style={styles.summaryItem}>
+                 <Text style={styles.sumLabel}>SUBTOTAL</Text>
+                 <Text style={styles.sumValue}>{formatINR(invoice.subtotal)}</Text>
+               </View>
+               {invoice.gstAmount > 0 && (
+                 <View style={styles.summaryItem}>
+                   <Text style={styles.sumLabel}>GST (18%)</Text>
+                   <Text style={styles.sumValue}>{formatINR(invoice.gstAmount)}</Text>
+                 </View>
+               )}
+               <View style={styles.grandTotal}>
+                 <Text style={styles.grandLabel}>GRAND TOTAL</Text>
+                 <Text style={styles.grandValue}>{formatINR(invoice.totalAmount)}</Text>
+               </View>
+            </View>
+
+            <View style={styles.zigzagBorder}>
+               {Array.from({ length: 14 }).map((_, i) => (
+                 <View key={i} style={styles.zig} />
+               ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Action Panel */}
+        <View style={styles.actionPanel}>
+           <TouchableOpacity 
+             style={styles.actionSecondary} 
+             onPress={handlePDF}
+           >
+              <Feather name="file-text" size={18} color={Colors.white} />
+              <Text style={styles.actionSecText}>DOWNLOAD PDF</Text>
+           </TouchableOpacity>
+           
+           <TouchableOpacity 
+             style={styles.actionPrimary} 
+             onPress={handleWhatsApp}
+           >
+              <FontAwesome name="whatsapp" size={24} color={Colors.black} />
+              <Text style={styles.actionPriText}>WHATSAPP SHARE</Text>
+           </TouchableOpacity>
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: Spacing.base, paddingBottom: Spacing['3xl'] },
-  back: { color: Colors.primary, fontWeight: Typography.fontWeight.semibold, marginBottom: Spacing.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md },
-  id: { fontSize: Typography.fontSize.xl, fontWeight: Typography.fontWeight.bold, color: Colors.text, fontFamily: 'monospace' },
-  date: { fontSize: Typography.fontSize.sm, color: Colors.textSecondary, marginTop: 2 },
-  dealerCard: { marginBottom: Spacing.md },
-  dealerName: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, color: Colors.text },
-  dealerShop: { fontSize: Typography.fontSize.md, color: Colors.textSecondary },
-  dealerPhone: { fontSize: Typography.fontSize.md, color: Colors.primary, marginTop: 4 },
-  sectionTitle: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, color: Colors.text, marginBottom: Spacing.sm, marginTop: Spacing.sm },
-  lineRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  lineName: { flex: 1, fontSize: Typography.fontSize.md, color: Colors.text },
-  lineQty: { fontSize: Typography.fontSize.sm, color: Colors.textMuted, marginHorizontal: Spacing.sm },
-  lineTotal: { fontSize: Typography.fontSize.md, fontWeight: Typography.fontWeight.semibold, color: Colors.text },
-  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginVertical: Spacing.md },
-  actionBtn: { flex: 1, minWidth: '45%' },
-  payRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, backgroundColor: Colors.white, borderRadius: 8, marginBottom: Spacing.xs },
-  payMode: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.semibold, color: Colors.text },
-  payDate: { fontSize: Typography.fontSize.xs, color: Colors.textMuted },
-  payAmount: { fontSize: Typography.fontSize.md, fontWeight: Typography.fontWeight.bold, color: Colors.success },
+  root: { flex: 1, backgroundColor: Colors.background },
+  shareBtn: { padding: 4 },
+  content: { padding: 24, paddingBottom: 60 },
+  receiptContainer: {
+    width: '100%',
+    ...Shadow.lg,
+  },
+  receiptBody: {
+    backgroundColor: Colors.surface, 
+    borderRadius: 2, 
+    padding: 24,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  receiptHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logoBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    transform: [{ rotate: '45deg' }],
+  },
+  businessName: { fontSize: 20, fontWeight: '900', color: Colors.white, letterSpacing: 2 },
+  businessSubs: { fontSize: 8, color: Colors.primary, fontWeight: '900', letterSpacing: 2.5, marginTop: 8 },
+  thickDivider: { height: 4, backgroundColor: Colors.primary, marginVertical: 20, borderRadius: 2 },
+  metaBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  metaLabel: { fontSize: 8, fontWeight: '900', color: Colors.textMuted, marginBottom: 4, letterSpacing: 1.5 },
+  metaValue: { fontSize: 12, fontWeight: '800', color: Colors.white, letterSpacing: 0.5 },
+  dashedDivider: { height: 1, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed', marginVertical: 20 },
+  table: { marginBottom: 12 },
+  tableHead: { flexDirection: 'row', paddingBottom: 12 },
+  headText: { fontSize: 8, fontWeight: '900', color: Colors.textMuted, letterSpacing: 1.5 },
+  tableRow: { flexDirection: 'row', marginBottom: 14, alignItems: 'flex-start' },
+  rowName: { fontSize: 13, fontWeight: '700', color: Colors.white },
+  rowQty: { fontSize: 12, color: Colors.textSecondary, fontWeight: '700' },
+  rowPrice: { fontSize: 13, color: Colors.primary, fontWeight: '900' },
+  summaryBox: { marginTop: 12 },
+  summaryItem: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  sumLabel: { fontSize: 10, color: Colors.textSecondary, fontWeight: '800', letterSpacing: 1.5 },
+  sumValue: { fontSize: 11, color: Colors.white, fontWeight: '700' },
+  grandTotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 2,
+    borderTopColor: Colors.primary,
+  },
+  grandLabel: { fontSize: 16, fontWeight: '900', color: Colors.white, letterSpacing: 1.5 },
+  grandValue: { fontSize: 24, fontWeight: '900', color: Colors.primary, letterSpacing: -0.5 },
+  zigzagBorder: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 40,
+    opacity: 0.2,
+  },
+  zig: {
+    width: 14,
+    height: 14,
+    backgroundColor: Colors.border,
+    transform: [{ rotate: '45deg' }],
+    marginHorizontal: 4,
+  },
+  actionPanel: { marginTop: 40, gap: 16 },
+  actionPrimary: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'center',
+     height: 56,
+     borderRadius: Radius.md,
+     backgroundColor: Colors.primary,
+  },
+  actionPriText: { color: Colors.black, fontWeight: '900', marginLeft: 12, fontSize: 14, letterSpacing: 1.5 },
+  actionSecondary: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'center',
+     height: 56,
+     borderRadius: Radius.md,
+     borderWidth: 1.5,
+     borderColor: Colors.border,
+     backgroundColor: Colors.surface,
+  },
+  actionSecText: { color: Colors.white, fontWeight: '800', marginLeft: 12, fontSize: 14, letterSpacing: 1.5 },
 });
