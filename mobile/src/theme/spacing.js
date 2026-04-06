@@ -12,33 +12,33 @@ export const Spacing = {
 };
 
 export const Radius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
+  sm: 8,
+  md: 12, // For buttons per design guide
+  lg: 20, // Slightly sharper cards for professional dark look
+  xl: 28,
   full: 9999,
 };
 
 export const Shadow = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: '#FF6B00', // Using Orange shadow for subtle glow on dark
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10,
-    shadowRadius: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#1A237E',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
     elevation: 8,
   },
 };

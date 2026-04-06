@@ -1,38 +1,48 @@
 export const Colors = {
-  primary: '#1A237E',
-  primaryLight: '#3949AB',
-  primaryDark: '#0D1B6E',
-  primaryLighter: '#E8EAF6',
+  // Primary & Energetic (Orange)
+  primary: '#FF6B00',
+  primaryDark: '#D95B00',
+  primaryLight: '#FF8C33',
+  primaryLighter: '#FFEDD5',
 
-  success: '#2E7D32',
-  successLight: '#E8F5E9',
-  danger: '#C62828',
-  dangerLight: '#FFEBEE',
-  warning: '#F57F17',
-  warningLight: '#FFF8E1',
-  info: '#0277BD',
-
+  // High Contrast (Black & White)
+  secondary: '#000000',
+  accent: '#FF6B00',
+  
+  // Background/Surface (Carbon Dark)
+  background: '#000000',
+  surface: '#121212',
+  card: '#1A1A1A',
   white: '#FFFFFF',
   black: '#000000',
-  surface: '#F5F6FA',
-  background: '#F0F2F8',
-
-  text: '#1A1A2E',
-  textSecondary: '#555577',
-  textMuted: '#9E9E9E',
-  textInverse: '#FFFFFF',
-
-  border: '#E0E0E0',
-  borderLight: '#F0F0F0',
-  divider: '#EEEEEE',
-
-  cardBackground: '#FFFFFF',
-  tabBarBackground: '#FFFFFF',
-  tabBarActive: '#1A237E',
-  tabBarInactive: '#9E9E9E',
-
-  overlay: 'rgba(0,0,0,0.5)',
-  backdrop: 'rgba(26,35,126,0.08)',
+  
+  // Typography (Clean White on Dark)
+  text: '#FFFFFF',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  textInverse: '#000000',
+  
+  // Semantic
+  success: '#10B981', // Keeping emerald for success only
+  successLight: '#DCFCE7',
+  error: '#FF3333',
+  errorLight: '#FEE2E2',
+  warning: '#F59E0B',
+  warningLight: '#FEF3C7',
+  danger: '#FF3333',
+  dangerLight: '#FEE2E2',
+  info: '#3B82F6',
+  
+  // UI Elements
+  border: '#2A2A2A',
+  borderLight: '#1A1A1A',
+  divider: '#1A1A1A',
+  cardBackground: '#111111',
+  tabBarBackground: '#000000',
+  tabBarActive: '#FF6B00',
+  tabBarInactive: '#64748B',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  backdrop: 'rgba(255, 107, 0, 0.1)',
 };
 
 export default Colors;
