@@ -16,25 +16,27 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1A237E"
       },
-      "package": "com.billobillings.app",
       "permissions": [
-        "android.permission.INTERNET",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "INTERNET",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_CONTACTS",
+        "WRITE_CONTACTS"
       ]
+    },
+    "ios": {
+      "infoPlist": {
+        "NSContactsUsageDescription": "Allow Billo to pick customer details from your address book."
+      },
+      "supportsTablet": true
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-file-system"
+      "expo-file-system",
+      "expo-contacts"
     ],
     "scheme": "billobillings",
-    "updates": {
-      "url": "https://u.expo.dev/YOUR_PROJECT_ID"
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
     "extra": {
       "eas": {
         "projectId": "YOUR_PROJECT_ID"

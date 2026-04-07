@@ -8,12 +8,14 @@ class BaseRepository {
     this.model = model;
   }
 
-  async findById(id, populate = '') {
-    return this.model.findById(id).populate(populate).lean();
+  async findById(id, populate = '', options = {}) {
+    const query = this.model.findById(id).populate(populate);
+    if (options.session) query.session(options.session);
+    return query.setOptions({ ...options, session: undefined }).lean();
   }
 
-  async findOne(filter, populate = '') {
-    return this.model.findOne(filter).populate(populate).lean();
+  async findOne(filter, populate = '', options = {}) {
+    return this.model.findOne(filter).populate(populate).setOptions(options).lean();
   }
 
   async findAll(filter = {}, options = {}) {
@@ -23,6 +25,7 @@ class BaseRepository {
       sort = { createdAt: -1 },
       populate = '',
       select = '',
+      session,
     } = options;
 
     const skip = (page - 1) * limit;
@@ -34,8 +37,9 @@ class BaseRepository {
         .limit(limit)
         .populate(populate)
         .select(select)
+        .session(session)
         .lean(),
-      this.model.countDocuments(filter),
+      this.model.countDocuments(filter).session(session),
     ]);
 
     return {
@@ -49,28 +53,37 @@ class BaseRepository {
     };
   }
 
-  async create(data) {
-    return this.model.create(data);
+  async create(data, options = {}) {
+    // Array creation with sessions requires [data, options]
+    if (Array.isArray(data)) {
+      return this.model.create(data, options);
+    }
+    const [doc] = await this.model.create([data], options);
+    return doc;
   }
 
-  async update(id, data) {
-    return this.model.findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true }).lean();
+  async update(id, data, options = {}) {
+    return this.model.findByIdAndUpdate(
+      id, 
+      { $set: data }, 
+      { new: true, runValidators: true, ...options }
+    ).lean();
   }
 
-  async delete(id) {
-    return this.model.findByIdAndDelete(id).lean();
+  async delete(id, options = {}) {
+    return this.model.findByIdAndDelete(id, options).lean();
   }
 
-  async exists(filter) {
-    return this.model.exists(filter);
+  async exists(filter, options = {}) {
+    return this.model.exists(filter).setOptions(options);
   }
 
-  async count(filter = {}) {
-    return this.model.countDocuments(filter);
+  async count(filter = {}, options = {}) {
+    return this.model.countDocuments(filter).setOptions(options);
   }
 
-  async aggregate(pipeline) {
-    return this.model.aggregate(pipeline);
+  async aggregate(pipeline, options = {}) {
+    return this.model.aggregate(pipeline).session(options.session);
   }
 }
 

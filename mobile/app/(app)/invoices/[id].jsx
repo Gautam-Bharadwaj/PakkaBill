@@ -3,7 +3,8 @@ import {
   ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Linking, Share, Dimensions, StatusBar, Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Feather, FontAwesome } from '@expo/vector-icons';
+import { Share2, Zap, RotateCw, FileText, PlusCircle } from 'lucide-react-native';
+import { FontAwesome } from '@expo/vector-icons';
 import { showMessage } from 'react-native-flash-message';
 import useInvoiceStore from '../../../src/store/useInvoiceStore';
 import AppHeader from '../../../src/components/common/AppHeader';
@@ -48,11 +49,21 @@ export default function InvoiceDetailScreen() {
     }
   };
 
+  const handleReorder = () => {
+    router.push({
+      pathname: '/(app)/invoices/new',
+      params: { 
+        dealerId: invoice.dealerId,
+        reorderId: id 
+      }
+    });
+  };
+
   const handlePDF = () => Linking.openURL(`${getInvoicePdfUrl(id)}`);
 
   const RightAction = (
     <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
-      <Feather name="share-2" size={20} color={Colors.primary} />
+      <Share2 size={20} color={Colors.primary} strokeWidth={2} />
     </TouchableOpacity>
   );
 
@@ -75,10 +86,10 @@ export default function InvoiceDetailScreen() {
             {/* Business Header */}
             <View style={styles.receiptHeader}>
               <View style={styles.logoBadge}>
-                <Feather name="zap" size={32} color={Colors.black} />
+                <Zap size={32} color={Colors.black} strokeWidth={2.5} fill={Colors.black} />
               </View>
               <Text style={styles.businessName}>PAKKABILL CORP</Text>
-              <Text style={styles.businessSubs}>SECURE TRANSACTION RECORD</Text>
+              <Text style={styles.businessSubs}>OFFICIAL BILL RECEIPT</Text>
             </View>
 
             <View style={styles.thickDivider} />
@@ -86,11 +97,11 @@ export default function InvoiceDetailScreen() {
             {/* Meta Section */}
             <View style={styles.metaBox}>
               <View>
-                <Text style={styles.metaLabel}>INVOICE ID</Text>
+                <Text style={styles.metaLabel}>BILL NO</Text>
                 <Text style={styles.metaValue}>#{invoice.invoiceId.split('-').pop()}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.metaLabel}>TIMESTAMP</Text>
+                <Text style={styles.metaLabel}>DATE & TIME</Text>
                 <Text style={styles.metaValue}>{formatDate(invoice.createdAt, 'dd MMM yyyy • hh:mm a')}</Text>
               </View>
             </View>
@@ -100,9 +111,9 @@ export default function InvoiceDetailScreen() {
             {/* Itemized Table */}
             <View style={styles.table}>
                <View style={styles.tableHead}>
-                 <Text style={[styles.headText, { flex: 2 }]}>SKU / PRODUCT</Text>
+                 <Text style={[styles.headText, { flex: 2 }]}>ITEM NAME</Text>
                  <Text style={[styles.headText, { flex: 0.5, textAlign: 'center' }]}>QTY</Text>
-                 <Text style={[styles.headText, { flex: 1.5, textAlign: 'right' }]}>TOTAL</Text>
+                 <Text style={[styles.headText, { flex: 1.5, textAlign: 'right' }]}>PRICE</Text>
                </View>
                {invoice.lineItems?.map((item, i) => (
                  <View key={i} style={styles.tableRow}>
@@ -128,7 +139,7 @@ export default function InvoiceDetailScreen() {
                  </View>
                )}
                <View style={styles.grandTotal}>
-                 <Text style={styles.grandLabel}>GRAND TOTAL</Text>
+                 <Text style={styles.grandLabel}>FINAL AMOUNT</Text>
                  <Text style={styles.grandValue}>{formatINR(invoice.totalAmount)}</Text>
                </View>
             </View>
@@ -143,21 +154,39 @@ export default function InvoiceDetailScreen() {
 
         {/* Action Panel */}
         <View style={styles.actionPanel}>
-           <TouchableOpacity 
-             style={styles.actionSecondary} 
-             onPress={handlePDF}
-           >
-              <Feather name="file-text" size={18} color={Colors.white} />
-              <Text style={styles.actionSecText}>DOWNLOAD PDF</Text>
-           </TouchableOpacity>
-           
-           <TouchableOpacity 
-             style={styles.actionPrimary} 
-             onPress={handleWhatsApp}
-           >
-              <FontAwesome name="whatsapp" size={24} color={Colors.black} />
-              <Text style={styles.actionPriText}>WHATSAPP SHARE</Text>
-           </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionReorder} 
+              onPress={handleReorder}
+            >
+               <RotateCw size={18} color={Colors.primary} strokeWidth={2} />
+               <Text style={styles.actionReorderText}>MAKE THIS BILL AGAIN</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionPrimary} 
+              onPress={() => router.push('/(app)/invoices/new')}
+            >
+               <PlusCircle size={22} color={Colors.black} strokeWidth={2.5} />
+               <Text style={styles.actionPriText}>CREATE ANOTHER BILL</Text>
+            </TouchableOpacity>
+
+            <View style={styles.buttonRow}>
+                <TouchableOpacity 
+                  style={[styles.actionSecondary, { flex: 1 }]} 
+                  onPress={handlePDF}
+                >
+                   <FileText size={18} color={Colors.white} strokeWidth={2} />
+                   <Text style={[styles.actionSecText, { fontSize: 13 }]}>PDF</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionWhatsApp, { flex: 1 }]} 
+                  onPress={handleWhatsApp}
+                >
+                   <FontAwesome name="whatsapp" size={22} color={Colors.black} />
+                   <Text style={[styles.actionPriText, { fontSize: 13 }]}>WHATSAPP</Text>
+                </TouchableOpacity>
+            </View>
         </View>
       </ScrollView>
     </View>
@@ -170,72 +199,74 @@ const styles = StyleSheet.create({
   content: { padding: 24, paddingBottom: 60 },
   receiptContainer: {
     width: '100%',
-    ...Shadow.lg,
   },
   receiptBody: {
     backgroundColor: Colors.surface, 
-    borderRadius: 2, 
+    borderRadius: 24, 
     padding: 24,
     borderWidth: 1.5,
     borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
   },
   receiptHeader: {
     alignItems: 'center',
     marginBottom: 24,
   },
   logoBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    transform: [{ rotate: '45deg' }],
   },
-  businessName: { fontSize: 20, fontWeight: '900', color: Colors.white, letterSpacing: 2 },
-  businessSubs: { fontSize: 8, color: Colors.primary, fontWeight: '900', letterSpacing: 2.5, marginTop: 8 },
-  thickDivider: { height: 4, backgroundColor: Colors.primary, marginVertical: 20, borderRadius: 2 },
+  businessName: { fontSize: 20, fontWeight: '700', color: Colors.white, letterSpacing: 1 },
+  businessSubs: { fontSize: 9, color: Colors.textSecondary, fontWeight: '600', letterSpacing: 1, marginTop: 4 },
+  thickDivider: { height: 2, backgroundColor: Colors.primary, marginVertical: 20, borderRadius: 2 },
   metaBox: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  metaLabel: { fontSize: 8, fontWeight: '900', color: Colors.textMuted, marginBottom: 4, letterSpacing: 1.5 },
-  metaValue: { fontSize: 12, fontWeight: '800', color: Colors.white, letterSpacing: 0.5 },
+  metaLabel: { fontSize: 9, fontWeight: '600', color: Colors.textMuted, marginBottom: 4, letterSpacing: 0.5 },
+  metaValue: { fontSize: 13, fontWeight: '700', color: Colors.white },
   dashedDivider: { height: 1, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed', marginVertical: 20 },
   table: { marginBottom: 12 },
   tableHead: { flexDirection: 'row', paddingBottom: 12 },
-  headText: { fontSize: 8, fontWeight: '900', color: Colors.textMuted, letterSpacing: 1.5 },
-  tableRow: { flexDirection: 'row', marginBottom: 14, alignItems: 'flex-start' },
-  rowName: { fontSize: 13, fontWeight: '700', color: Colors.white },
-  rowQty: { fontSize: 12, color: Colors.textSecondary, fontWeight: '700' },
-  rowPrice: { fontSize: 13, color: Colors.primary, fontWeight: '900' },
+  headText: { fontSize: 9, fontWeight: '600', color: Colors.textMuted, letterSpacing: 0.5 },
+  tableRow: { flexDirection: 'row', marginBottom: 16, alignItems: 'flex-start' },
+  rowName: { fontSize: 14, fontWeight: '600', color: Colors.white },
+  rowQty: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
+  rowPrice: { fontSize: 14, color: Colors.white, fontWeight: '700' },
   summaryBox: { marginTop: 12 },
-  summaryItem: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  sumLabel: { fontSize: 10, color: Colors.textSecondary, fontWeight: '800', letterSpacing: 1.5 },
-  sumValue: { fontSize: 11, color: Colors.white, fontWeight: '700' },
+  summaryItem: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  sumLabel: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600' },
+  sumValue: { fontSize: 12, color: Colors.white, fontWeight: '700' },
   grandTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 16,
     paddingTop: 16,
-    borderTopWidth: 2,
-    borderTopColor: Colors.primary,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
-  grandLabel: { fontSize: 16, fontWeight: '900', color: Colors.white, letterSpacing: 1.5 },
-  grandValue: { fontSize: 24, fontWeight: '900', color: Colors.primary, letterSpacing: -0.5 },
+  grandLabel: { fontSize: 16, fontWeight: '700', color: Colors.white },
+  grandValue: { fontSize: 22, fontWeight: '700', color: Colors.primaryLight },
   zigzagBorder: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 40,
-    opacity: 0.2,
+    opacity: 0.1,
   },
   zig: {
-    width: 14,
-    height: 14,
-    backgroundColor: Colors.border,
-    transform: [{ rotate: '45deg' }],
+    width: 12,
+    height: 12,
+    backgroundColor: Colors.textMuted,
+    borderRadius: 6,
     marginHorizontal: 4,
   },
   actionPanel: { marginTop: 40, gap: 16 },
@@ -244,19 +275,39 @@ const styles = StyleSheet.create({
      alignItems: 'center',
      justifyContent: 'center',
      height: 56,
-     borderRadius: Radius.md,
+     borderRadius: 16,
      backgroundColor: Colors.primary,
   },
-  actionPriText: { color: Colors.black, fontWeight: '900', marginLeft: 12, fontSize: 14, letterSpacing: 1.5 },
+  actionPriText: { color: Colors.white, fontWeight: '700', marginLeft: 12, fontSize: 15 },
+  actionReorder: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'center',
+     height: 56,
+     borderRadius: 16,
+     borderWidth: 1.5,
+     borderColor: Colors.primary,
+     backgroundColor: 'rgba(79, 70, 229, 0.05)',
+  },
+  actionReorderText: { color: Colors.primaryLight, fontWeight: '700', marginLeft: 12, fontSize: 15 },
   actionSecondary: {
      flexDirection: 'row',
      alignItems: 'center',
      justifyContent: 'center',
      height: 56,
-     borderRadius: Radius.md,
+     borderRadius: 16,
      borderWidth: 1.5,
      borderColor: Colors.border,
      backgroundColor: Colors.surface,
   },
-  actionSecText: { color: Colors.white, fontWeight: '800', marginLeft: 12, fontSize: 14, letterSpacing: 1.5 },
+  actionSecText: { color: Colors.white, fontWeight: '600', marginLeft: 12, fontSize: 15 },
+  buttonRow: { flexDirection: 'row', gap: 16 },
+  actionWhatsApp: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'center',
+     height: 56,
+     borderRadius: 16,
+     backgroundColor: '#25D366', // WhatsApp Brand Color
+  },
 });

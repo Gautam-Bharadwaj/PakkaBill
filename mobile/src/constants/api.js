@@ -1,10 +1,13 @@
-export const API_BASE_URL = process.env.API_BASE_URL || 'http://10.254.200.202:5001/api';
+// Modern Industrial Pattern: Dynamic Base URL with fallback
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.142.206:5001/api';
 
 export const ENDPOINTS = {
   // Auth
+  SIGNUP: '/auth/signup',
   LOGIN: '/auth/login',
   REFRESH: '/auth/refresh',
   LOGOUT: '/auth/logout',
+  UPDATE_PROFILE: '/auth/update-profile',
 
   // Dealers
   DEALERS: '/dealers',

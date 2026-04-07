@@ -24,7 +24,7 @@ router.get('/:id', dealerController.getById.bind(dealerController));
 router.put('/:id', validate(dealerSchema.partial()), dealerController.update.bind(dealerController));
 router.delete('/:id', dealerController.delete.bind(dealerController));
 router.get('/:id/invoices', invoiceController.getByDealer.bind(invoiceController));
-router.get('/:id/payments', paymentController.getByInvoice.bind(paymentController));
+router.get('/:id/payments', invoiceController.getByDealer.bind(invoiceController));
 router.post('/:id/remind', dealerController.sendReminder.bind(dealerController));
 
 module.exports = router;

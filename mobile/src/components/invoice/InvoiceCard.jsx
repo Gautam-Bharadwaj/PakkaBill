@@ -3,33 +3,66 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppCard from '../common/AppCard';
 import AppBadge from '../common/AppBadge';
 import { Colors } from '../../theme/colors';
-import { Typography } from '../../theme/typography';
-import { Spacing } from '../../theme/spacing';
 import { formatINR } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
+import { PlusCircle, ArrowRight } from 'lucide-react-native';
+import { router } from 'expo-router';
 
 export default function InvoiceCard({ invoice, onPress }) {
-  const statusVariant = {
-    paid: 'success', partial: 'warning', unpaid: 'danger',
-  }[invoice.paymentStatus] || 'muted';
+  const statusColor = {
+    paid: Colors.success,
+    partial: Colors.primary,
+    unpaid: Colors.error || '#FF3333',
+  }[invoice.paymentStatus] || Colors.textMuted;
+
+  const handleQuickPay = (e) => {
+    e.stopPropagation();
+    router.push(`/(app)/payments/${invoice._id}`);
+  };
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.88}>
-      <AppCard style={styles.card}>
-        <View style={styles.top}>
-          <Text style={styles.id}>{invoice.invoiceId}</Text>
-          <AppBadge label={invoice.paymentStatus} variant={statusVariant} />
-        </View>
-        <Text style={styles.dealer}>{invoice.dealerName}</Text>
-        <Text style={styles.shop}>{invoice.dealerShop}</Text>
-        <View style={styles.bottom}>
-          <View>
-            <Text style={styles.amount}>{formatINR(invoice.totalAmount)}</Text>
-            {invoice.amountDue > 0 && (
-              <Text style={styles.due}>Due: {formatINR(invoice.amountDue)}</Text>
-            )}
+    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.container}>
+      <AppCard style={styles.card} padded={false}>
+        <View style={styles.header}>
+          <View style={styles.billBadge}>
+            <Text style={styles.billNo}>#{invoice.invoiceId.split('-').pop().toUpperCase()}</Text>
           </View>
-          <Text style={styles.date}>{formatDate(invoice.createdAt)}</Text>
+          <View style={[styles.statusIndicator, { backgroundColor: statusColor }]}>
+             <Text style={styles.statusText}>{invoice.paymentStatus.toUpperCase()}</Text>
+          </View>
+        </View>
+
+        <View style={styles.body}>
+          <View style={styles.mainInfo}>
+             <Text style={styles.customerName} numberOfLines={1}>{invoice.dealerName?.toUpperCase()}</Text>
+             <Text style={styles.shopName} numberOfLines={1}>{invoice.dealerShop?.toUpperCase()}</Text>
+          </View>
+          <View style={styles.amountInfo}>
+             <Text style={styles.amountLabel}>AMOUNT</Text>
+             <Text style={styles.amountValue}>{formatINR(invoice.totalAmount)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.footer}>
+          <View style={styles.metaRow}>
+             <Text style={styles.date}>{formatDate(invoice.createdAt, 'dd MMM, yyyy')}</Text>
+             {invoice.amountDue > 0 && (
+               <View style={styles.dueBox}>
+                  <Text style={styles.dueLabel}>DUE: {formatINR(invoice.amountDue)}</Text>
+               </View>
+             )}
+          </View>
+          
+          {invoice.amountDue > 0 ? (
+            <TouchableOpacity style={styles.collectBtn} onPress={handleQuickPay}>
+               <PlusCircle size={14} color={Colors.black} strokeWidth={2.5} />
+               <Text style={styles.collectText}>COLLECT</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.viewBtn}>
+               <ArrowRight size={16} color={Colors.primary} strokeWidth={2} />
+            </View>
+          )}
         </View>
       </AppCard>
     </TouchableOpacity>
@@ -37,13 +70,51 @@ export default function InvoiceCard({ invoice, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: Spacing.sm },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  id: { fontSize: Typography.fontSize.sm, fontWeight: Typography.fontWeight.bold, color: Colors.primary, fontFamily: 'monospace' },
-  dealer: { fontSize: Typography.fontSize.md, fontWeight: Typography.fontWeight.semibold, color: Colors.text, marginTop: Spacing.xs },
-  shop: { fontSize: Typography.fontSize.sm, color: Colors.textSecondary },
-  bottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: Spacing.md },
-  amount: { fontSize: Typography.fontSize.lg, fontWeight: Typography.fontWeight.bold, color: Colors.text },
-  due: { fontSize: Typography.fontSize.sm, color: Colors.danger, fontWeight: Typography.fontWeight.semibold },
-  date: { fontSize: Typography.fontSize.xs, color: Colors.textMuted },
+  container: { marginBottom: 16 },
+  card: { backgroundColor: Colors.surface, borderRadius: 20, borderWidth: 1.5, borderColor: Colors.border, overflow: 'hidden' },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  billBadge: { backgroundColor: Colors.black, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: Colors.border },
+  billNo: { fontSize: 10, fontWeight: '900', color: Colors.primary, letterSpacing: 1 },
+  statusIndicator: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  statusText: { fontSize: 9, fontWeight: '900', color: Colors.black, letterSpacing: 0.5 },
+  body: { padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mainInfo: { flex: 1, marginRight: 12 },
+  customerName: { fontSize: 16, fontWeight: '800', color: Colors.white, letterSpacing: 0.5 },
+  shopName: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600', marginTop: 4 },
+  amountInfo: { alignItems: 'flex-end' },
+  amountLabel: { fontSize: 8, fontWeight: '900', color: Colors.textMuted, letterSpacing: 1, marginBottom: 2 },
+  amountValue: { fontSize: 18, fontWeight: '900', color: Colors.white },
+  footer: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 12, 
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  date: { fontSize: 10, color: Colors.textMuted, fontWeight: '700' },
+  dueBox: { backgroundColor: 'rgba(255, 51, 51, 0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  dueLabel: { fontSize: 9, color: '#FF3333', fontWeight: '900' },
+  collectBtn: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: Colors.primary, 
+    paddingHorizontal: 12, 
+    paddingVertical: 6, 
+    borderRadius: 8,
+    gap: 6,
+  },
+  collectText: { fontSize: 10, fontWeight: '900', color: Colors.black, letterSpacing: 0.5 },
+  viewBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.black, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
 });

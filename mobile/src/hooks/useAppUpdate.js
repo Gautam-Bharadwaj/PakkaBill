@@ -7,6 +7,7 @@ export default function useAppUpdate() {
 
   useEffect(() => {
     (async () => {
+      if (__DEV__ || !Updates.isEnabled) return;
       try {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {

@@ -3,11 +3,14 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, default: 'Admin' },
+    name: { type: String, required: true, unique: true },
     pin: { type: String, required: true, select: false },
     role: { type: String, enum: ['admin'], default: 'admin' },
+    shopName: { type: String, default: '' },
+    gstNumber: { type: String, default: '' },
+    address: { type: String, default: '' },
     upiVpa: { type: String, default: '' },
-    upiName: { type: String, default: 'Billo Billings' },
+    upiName: { type: String, default: 'PakkaBill' },
     refreshToken: { type: String, select: false },
   },
   { timestamps: true }

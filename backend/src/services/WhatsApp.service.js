@@ -63,7 +63,9 @@ class WhatsAppService {
     }
 
     try {
-      const chatId = `91${phone}@c.us`;
+      const cleanPhone = phone.replace(/\D/g, ''); // 🧼 Sanitize
+      const chatId = cleanPhone.startsWith('91') ? `${cleanPhone}@c.us` : `91${cleanPhone}@c.us`;
+      
       await this.client.sendMessage(chatId, body);
       await Message.findByIdAndUpdate(log._id, { status: 'sent', sentAt: new Date() });
       return true;

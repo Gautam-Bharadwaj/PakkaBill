@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as dashboardApi from '../api/dashboard.api';
+import { getInvoices } from '../api/invoice.api';
 import logger from '../utils/logger';
 
 const useDashboardStore = create((set) => ({
@@ -7,6 +8,7 @@ const useDashboardStore = create((set) => ({
   revenueChart: [],
   topProducts: [],
   pendingDealers: [],
+  recentInvoices: [], // Track actual recent activity
   mlInsights: null,
   isLoading: false,
   error: null,
@@ -14,17 +16,19 @@ const useDashboardStore = create((set) => ({
   fetchAll: async () => {
     set({ isLoading: true, error: null });
     try {
-      const [summaryRes, chartRes, productsRes, dealersRes] = await Promise.all([
+      const [summaryRes, chartRes, productsRes, dealersRes, invoicesRes] = await Promise.all([
         dashboardApi.getDashboardSummary(),
         dashboardApi.getRevenueChart(30),
         dashboardApi.getTopProducts(5),
         dashboardApi.getPendingDealers(5),
+        getInvoices({ limit: 5 }), // Audit: Fetch real recent activity
       ]);
       set({
         summary: summaryRes.data.data,
         revenueChart: chartRes.data.data,
         topProducts: productsRes.data.data,
         pendingDealers: dealersRes.data.data,
+        recentInvoices: invoicesRes.data.data || [],
         isLoading: false,
       });
     } catch (err) {

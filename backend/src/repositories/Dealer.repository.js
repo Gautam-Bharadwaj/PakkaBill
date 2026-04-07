@@ -27,22 +27,22 @@ class DealerRepository extends BaseRepository {
       .lean();
   }
 
-  async incrementPending(id, amount) {
+  async incrementPending(id, amount, options = {}) {
     return this.model.findByIdAndUpdate(
       id,
       {
         $inc: { pendingAmount: amount, totalPurchased: amount, invoiceCount: 1 },
         $set: { lastInvoiceAt: new Date() },
       },
-      { new: true }
+      { new: true, ...options }
     );
   }
 
-  async decrementPending(id, amount) {
+  async decrementPending(id, amount, options = {}) {
     return this.model.findByIdAndUpdate(
       id,
       { $inc: { pendingAmount: -amount } },
-      { new: true }
+      { new: true, ...options }
     );
   }
 }

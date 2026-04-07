@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import useProductStore from '../store/useProductStore';
+import { calc } from '../utils/currency';
 
 /**
  * Enhanced Invoice builder state management hook.
- * Features: Recently Used tracking and Industrial Calculation logic.
+ * Features: Precision Math, Recently Used tracking, and Industrial Calculation logic.
  */
 export default function useInvoiceBuilder() {
   const [dealer, setDealer] = useState(null);
@@ -15,7 +16,6 @@ export default function useInvoiceBuilder() {
   const { markAsUsed } = useProductStore();
 
   const addProduct = useCallback((product) => {
-    // Audit Trail: Mark as recently used for Smart Suggestions
     markAsUsed(product);
 
     setLineItems((prev) => {
@@ -31,26 +31,30 @@ export default function useInvoiceBuilder() {
     });
   }, [markAsUsed]);
 
-  const buildItem = (product) => ({
-    productId: product._id,
-    productName: product.name,
-    sku: product.sku || 'N/A',
-    quantity: 1,
-    unitPrice: product.sellingPrice,
-    discountPercent: 0,
-    lineTotal: product.sellingPrice,
-    lineProfit: product.sellingPrice - (product.manufacturingCost || 0),
-    manufacturingCost: product.manufacturingCost || 0,
-  });
+  const buildItem = (product) => {
+    const discountedPrice = calc.discount(product.sellingPrice, 0);
+    return {
+      productId: product._id,
+      productName: product.name,
+      sku: product.sku || 'N/A',
+      quantity: 1,
+      unitPrice: product.sellingPrice,
+      discountPercent: 0,
+      lineTotal: discountedPrice,
+      lineProfit: calc.sub(discountedPrice, product.manufacturingCost || 0),
+      manufacturingCost: product.manufacturingCost || 0,
+    };
+  };
 
   const recalc = (item) => {
-    const discountedPrice = item.unitPrice * (1 - item.discountPercent / 100);
-    const lineTotal = parseFloat((discountedPrice * item.quantity).toFixed(2));
-    const lineProfit = parseFloat(((discountedPrice - item.manufacturingCost) * item.quantity).toFixed(2));
+    const discountedPrice = calc.discount(item.unitPrice, item.discountPercent);
+    const lineTotal = calc.mul(discountedPrice, item.quantity);
+    const lineProfit = calc.mul(calc.sub(discountedPrice, item.manufacturingCost), item.quantity);
     return { lineTotal, lineProfit };
   };
 
   const updateQty = (productId, qty) => {
+    if (qty < 0) return; // Prevent negative stock billing
     setLineItems((prev) =>
       prev.map((i) => i.productId === productId ? { ...i, quantity: qty, ...recalc({ ...i, quantity: qty }) } : i)
     );
@@ -60,10 +64,10 @@ export default function useInvoiceBuilder() {
     setLineItems((prev) => prev.filter((i) => i.productId !== productId));
   };
 
-  const subtotal = lineItems.reduce((sum, i) => sum + i.lineTotal, 0);
-  const gstAmount = parseFloat((subtotal * gstRate / 100).toFixed(2));
-  const totalAmount = parseFloat((subtotal + gstAmount).toFixed(2));
-  const totalProfit = lineItems.reduce((sum, i) => sum + i.lineProfit, 0);
+  const subtotal = lineItems.reduce((sum, i) => calc.add(sum, i.lineTotal), 0);
+  const gstAmount = calc.percent(subtotal, gstRate);
+  const totalAmount = calc.add(subtotal, gstAmount);
+  const totalProfit = lineItems.reduce((sum, i) => calc.add(sum, i.lineProfit), 0);
 
   const resolvedAmountPaid = paymentMode === 'full'
     ? totalAmount
@@ -71,7 +75,7 @@ export default function useInvoiceBuilder() {
     ? 0
     : parseFloat(amountPaid) || 0;
 
-  const amountDue = parseFloat((totalAmount - resolvedAmountPaid).toFixed(2));
+  const amountDue = calc.sub(totalAmount, resolvedAmountPaid);
 
   const buildPayload = () => ({
     dealerId: dealer?._id,
@@ -83,6 +87,14 @@ export default function useInvoiceBuilder() {
     amountPaid: resolvedAmountPaid,
   });
 
+  const setReorderItems = useCallback((items) => {
+    setLineItems(items.map(item => ({
+      ...item,
+      lineTotal: calc.mul(item.unitPrice, item.quantity),
+      lineProfit: calc.mul(calc.sub(item.unitPrice, item.manufacturingCost || 0), item.quantity)
+    })));
+  }, []);
+
   const reset = () => {
     setDealer(null);
     setLineItems([]);
@@ -93,7 +105,7 @@ export default function useInvoiceBuilder() {
 
   return {
     dealer, setDealer,
-    lineItems, addProduct, updateQty, removeItem,
+    lineItems, addProduct, updateQty, removeItem, setReorderItems,
     gstRate, setGstRate,
     paymentMode, setPaymentMode,
     amountPaid, setAmountPaid,

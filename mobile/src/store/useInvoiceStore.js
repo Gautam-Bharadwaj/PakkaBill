@@ -36,9 +36,7 @@ const useInvoiceStore = create((set) => ({
     return data.data;
   },
 
-  getUnpaidCount: (state) => {
-    return state.invoices.filter((inv) => inv.paymentStatus !== 'paid').length;
-  },
+  getUnpaidCount: () => get().invoices.filter((inv) => inv.paymentStatus !== 'paid').length,
 }));
 
 export default useInvoiceStore;

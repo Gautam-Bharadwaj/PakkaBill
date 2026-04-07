@@ -1,48 +1,60 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, FlatList, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, FlatList, Text, StyleSheet, TouchableOpacity, StatusBar, Dimensions, ScrollView } from 'react-native';
 import { router } from 'expo-router';
+import { Plus, History } from 'lucide-react-native';
 import useInvoiceStore from '../../../src/store/useInvoiceStore';
 import InvoiceCard from '../../../src/components/invoice/InvoiceCard';
 import AppLoader from '../../../src/components/common/AppLoader';
-import AppEmpty from '../../../src/components/common/AppEmpty';
 import AppError from '../../../src/components/common/AppError';
+import AppHeader from '../../../src/components/common/AppHeader';
 import { Colors } from '../../../src/theme/colors';
-import { Typography } from '../../../src/theme/typography';
-import { Spacing, Radius, Shadow } from '../../../src/theme/spacing';
 
 const FILTERS = [
-  { label: 'All', value: 'all' },
-  { label: 'Unpaid', value: 'unpaid' },
-  { label: 'Partial', value: 'partial' },
-  { label: 'Paid', value: 'paid' },
+  { label: 'ALL BILLS', value: 'all' },
+  { label: 'PENDING', value: 'unpaid' },
+  { label: 'PARTIAL', value: 'partial' },
+  { label: 'PAID', value: 'paid' },
 ];
 
 export default function InvoicesScreen() {
   const { invoices, isLoading, error, fetchInvoices } = useInvoiceStore();
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => { fetchInvoices({ status: filter }); }, [filter]);
+  useEffect(() => { 
+    fetchInvoices({ status: filter }); 
+  }, [filter]);
 
-  const onRefresh = useCallback(() => { fetchInvoices({ status: filter }); }, [filter]);
+  const onRefresh = useCallback(() => { 
+    fetchInvoices({ status: filter }); 
+  }, [filter]);
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Invoices</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/(app)/invoices/new')}>
-          <Text style={styles.addText}>+ New</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity key={f.value} style={[styles.chip, filter === f.value && styles.chipActive]} onPress={() => setFilter(f.value)}>
-            <Text style={[styles.chipText, filter === f.value && styles.chipTextActive]}>{f.label}</Text>
-          </TouchableOpacity>
-        ))}
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
+      <AppHeader title="BILLING HISTORY" showBack />
+
+      <View style={styles.filterSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+          {FILTERS.map((f) => (
+            <TouchableOpacity 
+              key={f.value} 
+              activeOpacity={0.7}
+              style={[styles.chip, filter === f.value && styles.chipActive]} 
+              onPress={() => setFilter(f.value)}
+            >
+              <Text style={[styles.chipText, filter === f.value && styles.chipTextActive]}>
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
-      {isLoading && !invoices.length ? <AppLoader /> :
-       error ? <AppError message={error} onRetry={onRefresh} /> : (
+      {isLoading && !invoices.length ? (
+        <AppLoader fullScreen label="Searching history..." />
+      ) : error ? (
+        <AppError message={error} onRetry={onRefresh} />
+      ) : (
         <FlatList
           data={invoices}
           keyExtractor={(inv) => inv._id}
@@ -50,32 +62,131 @@ export default function InvoicesScreen() {
           refreshing={isLoading}
           onRefresh={onRefresh}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<AppEmpty title="No invoices" actionLabel="Create Invoice" onAction={() => router.push('/(app)/invoices/new')} />}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+               <View style={styles.emptyIconWrap}>
+                 <History size={48} color={Colors.border} strokeWidth={1} />
+               </View>
+               <Text style={styles.emptyTitle}>NO BILLS FOUND</Text>
+               <Text style={styles.emptySub}>YOU HAVEN'T CREATED ANY BILLS IN THIS CATEGORY YET.</Text>
+               <TouchableOpacity 
+                style={styles.emptyBtn}
+                onPress={() => router.push('/(app)/invoices/new')}
+               >
+                 <Text style={styles.emptyBtnText}>CREATE YOUR FIRST BILL</Text>
+               </TouchableOpacity>
+            </View>
+          }
           renderItem={({ item }) => (
-            <InvoiceCard invoice={item} onPress={() => router.push(`/(app)/invoices/${item._id}`)} />
+            <InvoiceCard 
+              invoice={item} 
+              onPress={() => router.push(`/(app)/invoices/${item._id}`)} 
+            />
           )}
         />
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/(app)/invoices/new')}>
-        <Text style={styles.fabText}>+</Text>
+      {/* Modern FAB */}
+      <TouchableOpacity 
+        style={styles.fab} 
+        activeOpacity={0.9}
+        onPress={() => router.push('/(app)/invoices/new')}
+      >
+        <Plus size={32} color={Colors.black} strokeWidth={2.5} />
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.base, paddingBottom: Spacing.sm },
-  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.extrabold, color: Colors.text },
-  addBtn: { backgroundColor: Colors.primary, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.md },
-  addText: { color: Colors.white, fontWeight: Typography.fontWeight.bold },
-  filterRow: { flexDirection: 'row', paddingHorizontal: Spacing.base, gap: Spacing.sm, marginBottom: Spacing.sm },
-  chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white },
-  chipActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLighter },
-  chipText: { fontSize: Typography.fontSize.sm, color: Colors.textSecondary },
-  chipTextActive: { color: Colors.primary, fontWeight: Typography.fontWeight.bold },
-  list: { padding: Spacing.base },
-  fab: { position: 'absolute', bottom: Spacing['2xl'], right: Spacing.base, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', ...Shadow.lg },
-  fabText: { color: Colors.white, fontSize: 28, fontWeight: Typography.fontWeight.bold, lineHeight: 32 },
+  root: { flex: 1, backgroundColor: Colors.background },
+  filterSection: { 
+    paddingVertical: 16,
+    backgroundColor: Colors.black,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  filterScroll: { paddingHorizontal: 20, gap: 10 },
+  chip: { 
+    paddingHorizontal: 18, 
+    paddingVertical: 10, 
+    borderRadius: 12, 
+    borderWidth: 1.5, 
+    borderColor: Colors.border, 
+    backgroundColor: Colors.surface,
+  },
+  chipActive: { 
+    borderColor: Colors.primary, 
+    backgroundColor: Colors.black,
+  },
+  chipText: { 
+    fontSize: 10, 
+    fontWeight: '700', 
+    color: Colors.textSecondary,
+    letterSpacing: 1,
+  },
+  chipTextActive: { 
+    color: Colors.primary, 
+  },
+  list: { padding: 20, paddingBottom: 120 },
+  emptyContainer: { 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginTop: 100 
+  },
+  emptyIconWrap: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  emptyTitle: { 
+    fontSize: 16, 
+    fontWeight: '800', 
+    color: Colors.white, 
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  emptySub: { 
+    fontSize: 10, 
+    fontWeight: '600', 
+    color: Colors.textMuted, 
+    textAlign: 'center',
+    width: '80%',
+    lineHeight: 16,
+    letterSpacing: 0.5,
+  },
+  emptyBtn: {
+    marginTop: 32,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  emptyBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: Colors.black,
+  },
+  fab: { 
+    position: 'absolute', 
+    bottom: 32, 
+    right: 24, 
+    width: 64, 
+    height: 64, 
+    borderRadius: 32, 
+    backgroundColor: Colors.primary, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    elevation: 8,
+  },
 });

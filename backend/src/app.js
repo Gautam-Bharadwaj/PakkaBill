@@ -55,7 +55,8 @@ app.use(errorMiddleware);
 const start = async () => {
   await connectDB();
   await authService.ensureAdminExists();
-  await whatsappService.initialize();
+  // Initialize WhatsApp in background to prevent boot blocking
+  whatsappService.initialize().catch(err => console.error('[WhatsApp] Startup failed:', err));
 
   app.listen(env.PORT, () => {
     console.log(`[Server] Billo Billings API running on port ${env.PORT} (${env.NODE_ENV})`);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, FlatList, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { router } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Package, Plus, PackageSearch, AlertTriangle } from 'lucide-react-native';
 import useProductStore from '../../../src/store/useProductStore';
 import ProductCard from '../../../src/components/product/ProductCard';
 import AppHeader from '../../../src/components/common/AppHeader';
@@ -10,8 +10,6 @@ import AppLoader from '../../../src/components/common/AppLoader';
 import AppEmpty from '../../../src/components/common/AppEmpty';
 import AppError from '../../../src/components/common/AppError';
 import { Colors } from '../../../src/theme/colors';
-import { Spacing } from '../../../src/theme/spacing';
-import useDebounce from '../../../src/hooks/useDebounce';
 
 const FILTERS = ['ALL', 'ACTIVE', 'LOW STOCK'];
 
@@ -35,8 +33,7 @@ export default function ProductsScreen() {
       activeOpacity={0.8}
       onPress={() => router.push('/(app)/products/add')}
     >
-      <Feather name="box" size={20} color={Colors.black} />
-      <Feather name="plus" size={12} color={Colors.black} style={styles.plusIcon} />
+      <Plus size={24} color={Colors.black} strokeWidth={2.5} />
     </TouchableOpacity>
   );
 
@@ -44,7 +41,7 @@ export default function ProductsScreen() {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
       
-      <AppHeader title="INVENTORY" rightAction={RightAction} />
+      <AppHeader title="STOCK & INVENTORY" showBack rightAction={RightAction} />
 
       <View style={styles.headerControls}>
         <AppSearchBar 
@@ -83,8 +80,8 @@ export default function ProductsScreen() {
           onRefresh={onRefresh}
           ListEmptyComponent={
             <AppEmpty
-              title="NO PRODUCTS FOUND"
-              subtitle="ADD YOUR FIRST SKU TO GET STARTED"
+              title="NO STOCK RECORDED"
+              subtitle="ADD YOUR FIRST PRODUCT SKU TO BEGIN TRACKING SALES"
               actionLabel="ADD PRODUCT"
               onAction={() => router.push('/(app)/products/add')}
             />
@@ -101,33 +98,46 @@ export default function ProductsScreen() {
   );
 }
 
+// Minimal Debounce for better performance
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
   headerControls: {
-    padding: Spacing.base,
+    padding: 24,
     backgroundColor: Colors.black,
-    borderBottomWidth: 1,
+    borderBottomWidth: 1.5,
     borderBottomColor: Colors.border,
   },
   addBtn: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 8, 
+    width: 44, 
+    height: 44, 
+    borderRadius: 12, 
     backgroundColor: Colors.primary, 
     alignItems: 'center', 
     justifyContent: 'center',
-    flexDirection: 'row',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  plusIcon: { marginLeft: -2, marginTop: -8 },
   filterRow: { 
     flexDirection: 'row', 
     gap: 12, 
-    marginTop: 16,
+    marginTop: 20,
   },
   filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
     borderWidth: 1.5,
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
@@ -137,13 +147,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.black, 
   },
   filterText: { 
-    fontSize: 9, 
+    fontSize: 10, 
     color: Colors.textMuted, 
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1,
   },
   filterTextActive: { 
     color: Colors.primary, 
   },
-  grid: { padding: 8, paddingBottom: 100 },
+  grid: { padding: 12, paddingBottom: 120 },
 });

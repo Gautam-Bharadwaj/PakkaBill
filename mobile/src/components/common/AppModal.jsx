@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, TouchableWithoutFeedback } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { X } from 'lucide-react-native';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { Spacing, Radius, Shadow } from '../../theme/spacing';
@@ -15,10 +15,10 @@ export default function AppModal({ visible, onClose, title, children, showClose 
         <View style={styles.modal}>
           {(title || showClose) && (
             <View style={styles.header}>
-              {title && <Text style={styles.title}>{title}</Text>}
+              {!!title && <Text style={styles.title}>{title.toUpperCase()}</Text>}
               {showClose && (
                 <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                  <Feather name="x" size={20} color={Colors.textMuted} />
+                  <X size={20} color={Colors.textMuted} strokeWidth={2.5} />
                 </TouchableOpacity>
               )}
             </View>
@@ -36,44 +36,47 @@ const styles = StyleSheet.create({
   overlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: Colors.overlay, // Dark overlay
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   centeredView: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.base,
+    paddingHorizontal: 24,
   },
   modal: {
-    backgroundColor: Colors.surface, // Refined for Black/Orange Dark Mode
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderRadius: 24,
+    padding: 24,
     width: '100%',
     maxWidth: 420,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colors.border,
-    ...Shadow.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
-    borderBottomWidth: 1,
+    marginBottom: 20,
+    borderBottomWidth: 1.5,
     borderBottomColor: Colors.border,
-    paddingBottom: Spacing.sm,
+    paddingBottom: 12,
   },
   title: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '900',
     color: Colors.white,
     letterSpacing: 2,
-    textTransform: 'uppercase',
   },
   closeBtn: {
-    padding: 4,
+    padding: 2,
   },
   content: {
-    paddingTop: Spacing.sm,
+    paddingTop: 8,
   },
 });

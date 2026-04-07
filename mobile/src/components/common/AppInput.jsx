@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { 
+  View, 
+  TextInput, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity 
+} from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { Colors } from '../../theme/colors';
 import { Typography } from '../../theme/typography';
 import { Spacing, Radius } from '../../theme/spacing';
@@ -12,34 +19,52 @@ export default function AppInput({
   onSuffixPress,
   containerStyle,
   inputStyle,
+  isPassword,
   ...props
 }) {
   const [isFocused, setIsFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {!!label && <Text style={styles.label}>{label}</Text>}
       <View style={[
         styles.inputRow, 
         isFocused && styles.inputFocused, 
         error && styles.inputError
       ]}>
-        {prefix && <View style={styles.prefix}>{prefix}</View>}
+        {prefix && (
+          <View style={styles.prefix}>
+            {typeof prefix === 'string' ? <Text style={styles.prefixText}>{prefix}</Text> : prefix}
+          </View>
+        )}
         <TextInput
           style={[styles.input, inputStyle]}
           placeholderTextColor={Colors.textMuted}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
           selectionColor={Colors.primary}
+          secureTextEntry={isPassword && !showPassword}
           {...props}
+          onFocus={(e) => {
+            setIsFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            props.onBlur?.(e);
+          }}
         />
-        {suffix && (
+        {isPassword && (
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.suffixWrap}>
+             {showPassword ? <EyeOff size={20} color={Colors.textMuted} /> : <Eye size={20} color={Colors.primary} />}
+          </TouchableOpacity>
+        )}
+        {suffix && !isPassword && (
           <TouchableOpacity onPress={onSuffixPress} disabled={!onSuffixPress} style={styles.suffixWrap}>
             {typeof suffix === 'string' ? <Text style={styles.suffixText}>{suffix}</Text> : suffix}
           </TouchableOpacity>
         )}
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 }
@@ -69,6 +94,11 @@ const styles = StyleSheet.create({
   inputError: { borderColor: Colors.error },
   prefix: {
     marginRight: Spacing.xs,
+  },
+  prefixText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.primary,
+    fontWeight: '700',
   },
   input: {
     flex: 1,

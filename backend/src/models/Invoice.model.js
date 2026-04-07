@@ -46,8 +46,12 @@ const invoiceSchema = new mongoose.Schema(
 );
 
 invoiceSchema.pre('save', function (next) {
-  if (this.amountDue <= 0) {
+  // 🛡 Hardened Business Rule: Always derive Due Amount from Total and Paid
+  this.amountDue = parseFloat((this.totalAmount - this.amountPaid).toFixed(2));
+  
+  if (this.amountDue <= 0.05) { // Precision allowance for floating point
     this.paymentStatus = 'paid';
+    if (this.amountDue < 0) this.amountDue = 0; // Prevent negative due
   } else if (this.amountPaid > 0) {
     this.paymentStatus = 'partial';
   } else {

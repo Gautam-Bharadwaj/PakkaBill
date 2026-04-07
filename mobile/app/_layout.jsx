@@ -10,6 +10,8 @@ import useAppUpdate from '../src/hooks/useAppUpdate';
 import UpdatePrompt from '../src/components/update/UpdatePrompt';
 import { useState } from 'react';
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 export default function RootLayout() {
   const { loadFromStorage } = useAuthStore();
   const { updateAvailable, applyUpdate } = useAppUpdate();
@@ -24,21 +26,23 @@ export default function RootLayout() {
   }, [updateAvailable]);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <PaperProvider theme={paperTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(app)" />
-        </Stack>
-        <UpdatePrompt
-          visible={showUpdate}
-          onUpdate={applyUpdate}
-          onLater={() => setShowUpdate(false)}
-        />
-        <FlashMessage position="top" />
-      </PaperProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={styles.root}>
+        <PaperProvider theme={paperTheme}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(app)" />
+          </Stack>
+          <UpdatePrompt
+            visible={showUpdate}
+            onUpdate={applyUpdate}
+            onLater={() => setShowUpdate(false)}
+          />
+          <FlashMessage position="top" />
+        </PaperProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 

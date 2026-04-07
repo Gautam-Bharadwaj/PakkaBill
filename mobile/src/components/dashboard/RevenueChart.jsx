@@ -35,7 +35,8 @@ export default function RevenueChart({ data = [] }) {
       >
         <VictoryAxis
           tickFormat={(t) => {
-            const d = data[t];
+            const index = Math.round(t);
+            const d = data[index];
             return d ? formatMonthDay(d._id) : '';
           }}
           tickCount={5}

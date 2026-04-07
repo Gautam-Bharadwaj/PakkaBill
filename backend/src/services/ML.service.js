@@ -11,7 +11,8 @@ class MLService {
     try {
       const { data } = await this.client.get('/demand/predict');
       return data;
-    } catch {
+    } catch (err) {
+      console.error('[ML Service] Demand prediction failed:', err.message);
       return this._mockDemand();
     }
   }
@@ -20,7 +21,8 @@ class MLService {
     try {
       const { data } = await this.client.get('/dealer/segment');
       return data;
-    } catch {
+    } catch (err) {
+      console.error('[ML Service] Dealer segmentation failed:', err.message);
       return this._mockSegments();
     }
   }
@@ -29,7 +31,8 @@ class MLService {
     try {
       const { data } = await this.client.get('/pricing/suggest');
       return data;
-    } catch {
+    } catch (err) {
+      console.error('[ML Service] Pricing suggestion failed:', err.message);
       return this._mockPricing();
     }
   }
@@ -38,7 +41,8 @@ class MLService {
     try {
       const { data } = await this.client.get('/margin/alerts');
       return data;
-    } catch {
+    } catch (err) {
+      console.error('[ML Service] Margin alerts failed:', err.message);
       return this._mockMarginAlerts();
     }
   }

@@ -1,25 +1,26 @@
-import React, { useEffect } from 'react';
-import { ScrollView, Text, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, View, Text, StyleSheet, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Package, TrendingUp, Info } from 'lucide-react-native';
 import { showMessage } from 'react-native-flash-message';
 import useProductStore from '../../../../src/store/useProductStore';
+import AppHeader from '../../../../src/components/common/AppHeader';
 import AppInput from '../../../../src/components/common/AppInput';
 import AppButton from '../../../../src/components/common/AppButton';
 import AppLoader from '../../../../src/components/common/AppLoader';
 import { Colors } from '../../../../src/theme/colors';
-import { Typography } from '../../../../src/theme/typography';
-import { Spacing } from '../../../../src/theme/spacing';
 
 const schema = z.object({
-  name: z.string().min(1),
-  sellingPrice: z.string().refine((v) => !isNaN(+v) && +v >= 0),
+  name: z.string().min(1, 'PRODUCT NAME IS REQUIRED'),
+  sellingPrice: z.string().refine((v) => !isNaN(+v) && +v >= 0, 'INVALID SELLING PRICE'),
   paper: z.string().default('0'),
   printing: z.string().default('0'),
   binding: z.string().default('0'),
   other: z.string().default('0'),
+  batchSize: z.string().default('1').refine((v) => !isNaN(+v) && +v > 0, 'INVALID BATCH SIZE'),
   stockQuantity: z.string().default('0'),
   lowStockThreshold: z.string().default('10'),
 });
@@ -28,7 +29,14 @@ export default function EditProductScreen() {
   const { id } = useLocalSearchParams();
   const { currentProduct, fetchProduct, updateProduct, isLoading } = useProductStore();
 
-  const { control, handleSubmit, reset, formState: { isSubmitting } } = useForm({ resolver: zodResolver(schema) });
+  const { control, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: { 
+      name: '', sellingPrice: '', 
+      paper: '0', printing: '0', binding: '0', other: '0', 
+      batchSize: '1', stockQuantity: '0', lowStockThreshold: '10' 
+    },
+  });
 
   useEffect(() => { fetchProduct(id); }, [id]);
 
@@ -41,68 +49,197 @@ export default function EditProductScreen() {
         printing: String(currentProduct.costBreakdown?.printing || 0),
         binding: String(currentProduct.costBreakdown?.binding || 0),
         other: String(currentProduct.costBreakdown?.other || 0),
+        batchSize: '1', // Default to 1 on load since we save per-piece
         stockQuantity: String(currentProduct.stockQuantity || 0),
         lowStockThreshold: String(currentProduct.lowStockThreshold || 10),
       });
     }
   }, [currentProduct]);
 
+  const values = watch(['sellingPrice', 'paper', 'printing', 'binding', 'other', 'batchSize']);
+  const [sp, paper, printing, binding, other, batch] = values.map((v) => parseFloat(v) || 0);
+  
+  // Per Piece Calculation
+  const unitCost = batch > 0 ? (paper + printing + binding + other) / batch : 0;
+  const margin = sp > 0 ? ((sp - unitCost) / sp * 100) : 0;
+  
+  const marginColor = margin >= 25 ? '#4ADE80' : margin >= 15 ? Colors.primary : Colors.error;
+
   const onSubmit = async (data) => {
     try {
+      const b = parseFloat(data.batchSize) || 1;
       await updateProduct(id, {
         name: data.name,
         sellingPrice: +data.sellingPrice,
-        costBreakdown: { paper: +data.paper, printing: +data.printing, binding: +data.binding, other: +data.other },
+        costBreakdown: { 
+          paper: (+data.paper / b), 
+          printing: (+data.printing / b), 
+          binding: (+data.binding / b), 
+          other: (+data.other / b) 
+        },
         stockQuantity: +data.stockQuantity,
         lowStockThreshold: +data.lowStockThreshold,
       });
-      showMessage({ message: 'Product updated!', type: 'success' });
+      showMessage({ message: 'PRODUCT UPDATED', type: 'success' });
       router.back();
     } catch (err) {
-      showMessage({ message: err.response?.data?.message || 'Update failed', type: 'danger' });
+      showMessage({ message: err.response?.data?.message || 'UPDATE FAILED', type: 'danger' });
     }
   };
 
   if (isLoading && !currentProduct) return <AppLoader fullScreen />;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
+      <AppHeader title="EDIT PRODUCT" showBack />
+      
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Edit Product</Text>
-          {[
-            ['name', 'Product Name *', {}, {}],
-            ['sellingPrice', 'Selling Price *', { keyboardType: 'numeric' }, { prefix: '₹' }],
-          ].map(([name, label, inputProps, extra]) => (
-            <Controller key={name} name={name} control={control} render={({ field: { onChange, value } }) => (
-              <AppInput label={label} value={value} onChangeText={onChange} {...inputProps} {...extra} />
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          
+          <View style={styles.sectionHeader}>
+            <Package size={20} color={Colors.primary} strokeWidth={2.5} />
+            <Text style={styles.sectionHeading}>STORE VISIBILITY</Text>
+          </View>
+
+          <View style={styles.card}>
+            <Controller name="name" control={control} render={({ field: { onChange, value } }) => (
+              <AppInput label="PRODUCT NAME" value={value} onChangeText={onChange} error={errors.name?.message} placeholder="Name" autoCapitalize="characters" />
             )} />
-          ))}
-          <Text style={styles.section}>Cost Breakdown</Text>
-          {[['paper', 'Paper Cost'], ['printing', 'Printing Cost'], ['binding', 'Binding Cost'], ['other', 'Other Cost']].map(([name, label]) => (
-            <Controller key={name} name={name} control={control} render={({ field: { onChange, value } }) => (
-              <AppInput label={label} value={value} onChangeText={onChange} prefix="₹" keyboardType="numeric" />
+            <Controller name="sellingPrice" control={control} render={({ field: { onChange, value } }) => (
+              <AppInput label="SELLING PRICE (PER PIECE)" value={value} onChangeText={onChange} prefix="₹" keyboardType="numeric" error={errors.sellingPrice?.message} placeholder="0.00" />
             )} />
-          ))}
-          <Controller name="stockQuantity" control={control} render={({ field: { onChange, value } }) => (
-            <AppInput label="Stock Quantity" value={value} onChangeText={onChange} keyboardType="numeric" />
-          )} />
-          <Controller name="lowStockThreshold" control={control} render={({ field: { onChange, value } }) => (
-            <AppInput label="Low Stock Threshold" value={value} onChangeText={onChange} keyboardType="numeric" />
-          )} />
-          <AppButton title="Save Changes" onPress={handleSubmit(onSubmit)} loading={isSubmitting} fullWidth style={styles.btn} />
-          <AppButton title="Cancel" onPress={() => router.back()} variant="ghost" fullWidth />
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <TrendingUp size={20} color={Colors.primary} strokeWidth={2.5} />
+            <Text style={styles.sectionHeading}>PER PIECE ANALYSIS</Text>
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.batchHelper}>
+               <View style={styles.flex}>
+                 <Controller name="batchSize" control={control} render={({ field: { onChange, value } }) => (
+                   <AppInput label="BATCH QUANTITY" value={value} onChangeText={onChange} keyboardType="numeric" placeholder="1" error={errors.batchSize?.message} />
+                 )} />
+               </View>
+               <View style={styles.helperInfo}>
+                  <Text style={styles.helperText}>ENTER TOTAL PRODUCTION COSTS FOR THIS BATCH QUANTITY TO CALCULATE UNIT MARGIN.</Text>
+               </View>
+            </View>
+
+            <View style={styles.costRow}>
+               <View style={styles.flex}>
+                  <Controller name="paper" control={control} render={({ field: { onChange, value } }) => (
+                    <AppInput label="PAPER COST" value={value} onChangeText={onChange} prefix="₹" keyboardType="numeric" placeholder="0" />
+                  )} />
+               </View>
+               <View style={styles.flex}>
+                  <Controller name="printing" control={control} render={({ field: { onChange, value } }) => (
+                    <AppInput label="PRINT COST" value={value} onChangeText={onChange} prefix="₹" keyboardType="numeric" placeholder="0" />
+                  )} />
+               </View>
+            </View>
+            <View style={styles.costRow}>
+               <View style={styles.flex}>
+                  <Controller name="binding" control={control} render={({ field: { onChange, value } }) => (
+                    <AppInput label="BINDING" value={value} onChangeText={onChange} prefix="₹" keyboardType="numeric" placeholder="0" />
+                  )} />
+               </View>
+               <View style={styles.flex}>
+                  <Controller name="other" control={control} render={({ field: { onChange, value } }) => (
+                    <AppInput label="MISC COST" value={value} onChangeText={onChange} prefix="₹" keyboardType="numeric" placeholder="0" />
+                  )} />
+               </View>
+            </View>
+
+            <View style={[styles.marginBanner, margin < 10 && { borderColor: Colors.error }]}>
+               <View style={styles.marginStack}>
+                  <Text style={styles.mlabel}>UNIT COST (PER PIECE)</Text>
+                  <Text style={styles.mvalue}>₹{unitCost.toFixed(2)}</Text>
+               </View>
+               <View style={[styles.marginStack, { alignItems: 'flex-end' }]}>
+                  <Text style={styles.mlabel}>NET MARGIN (%)</Text>
+                  <Text style={[styles.mvalue, { color: marginColor }]}>{margin.toFixed(1)}%</Text>
+               </View>
+            </View>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <Info size={20} color={Colors.primary} strokeWidth={2.5} />
+            <Text style={styles.sectionHeading}>INVENTORY MANAGEMENT</Text>
+          </View>
+
+          <View style={styles.card}>
+            <Controller name="stockQuantity" control={control} render={({ field: { onChange, value } }) => (
+              <AppInput label="AVAILABLE STOCK" value={value} onChangeText={onChange} keyboardType="numeric" placeholder="0" />
+            )} />
+            <Controller name="lowStockThreshold" control={control} render={({ field: { onChange, value } }) => (
+              <AppInput label="LOW STOCK ALERT LIMIT" value={value} onChangeText={onChange} keyboardType="numeric" placeholder="10" />
+            )} />
+          </View>
+
+          <View style={styles.footer}>
+            <AppButton 
+              title="SAVE PRODUCT CHANGES" 
+              onPress={handleSubmit(onSubmit)} 
+              loading={isSubmitting} 
+              fullWidth 
+              style={styles.submitBtn} 
+            />
+            <AppButton 
+              title="DISCARD & GO BACK" 
+              onPress={() => router.back()} 
+              variant="ghost" 
+              fullWidth 
+            />
+          </View>
+          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  root: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
-  content: { padding: Spacing.base, paddingBottom: Spacing['3xl'] },
-  title: { fontSize: Typography.fontSize['2xl'], fontWeight: Typography.fontWeight.extrabold, color: Colors.text, marginBottom: Spacing.lg },
-  section: { fontSize: Typography.fontSize.base, fontWeight: Typography.fontWeight.bold, color: Colors.text, marginVertical: Spacing.sm },
-  btn: { marginTop: Spacing.md, marginBottom: Spacing.sm },
+  content: { padding: 24, paddingBottom: 60 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, marginTop: 12 },
+  sectionHeading: { fontSize: 11, fontWeight: '900', color: Colors.textSecondary, letterSpacing: 1.5 },
+  card: {
+    backgroundColor: Colors.surface,
+    padding: 24,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    marginBottom: 24,
+  },
+  batchHelper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  helperInfo: { flex: 1 },
+  helperText: { fontSize: 8, fontWeight: '700', color: Colors.primary, letterSpacing: 0.5, lineHeight: 12 },
+  costRow: { flexDirection: 'row', gap: 16 },
+  marginBanner: {
+    marginTop: 20,
+    backgroundColor: Colors.black,
+    padding: 20,
+    borderRadius: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderWidth: 1.2,
+    borderColor: Colors.border,
+  },
+  marginStack: { gap: 4 },
+  mlabel: { fontSize: 8, fontWeight: '800', color: Colors.textMuted, letterSpacing: 1 },
+  mvalue: { fontSize: 18, fontWeight: '900', color: Colors.white, letterSpacing: -0.5 },
+  footer: { marginTop: 12 },
+  submitBtn: { marginBottom: 16 },
 });

@@ -5,6 +5,18 @@ const KEYS = {
   ACCESS_TOKEN: 'ntp_access_token',
   REFRESH_TOKEN: 'ntp_refresh_token',
   USER: 'ntp_user',
+  HAS_REGISTERED: 'ntp_registered',
+};
+
+// ... existing functions ...
+
+export const setRegistered = async () => {
+  await AsyncStorage.setItem(KEYS.HAS_REGISTERED, 'true');
+};
+
+export const hasRegistered = async () => {
+  const val = await AsyncStorage.getItem(KEYS.HAS_REGISTERED);
+  return val === 'true';
 };
 
 // Secure store for tokens

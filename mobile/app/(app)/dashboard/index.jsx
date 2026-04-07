@@ -1,37 +1,43 @@
 import React, { useEffect, useCallback } from 'react';
 import {
-  ScrollView, View, Text, StyleSheet, RefreshControl, SafeAreaView, StatusBar, TouchableOpacity,
+  ScrollView, View, Text, StyleSheet, RefreshControl, StatusBar, TouchableOpacity, Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Layers, Users, Settings, ArrowUpRight, TrendingUp, Clock } from 'lucide-react-native';
 import useDashboardStore from '../../../src/store/useDashboardStore';
+import useAuthStore from '../../../src/store/useAuthStore';
 import AppHeader from '../../../src/components/common/AppHeader';
 import AppCard from '../../../src/components/common/AppCard';
 import AppLoader from '../../../src/components/common/AppLoader';
 import AppError from '../../../src/components/common/AppError';
+import InvoiceCard from '../../../src/components/invoice/InvoiceCard';
 import { Colors } from '../../../src/theme/colors';
-import { Typography } from '../../../src/theme/typography';
-import { Spacing, Radius, Shadow } from '../../../src/theme/spacing';
 import { formatINR } from '../../../src/utils/currency';
-import { getGreeting, formatDate } from '../../../src/utils/date';
+import { formatDate } from '../../../src/utils/date';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function DashboardScreen() {
-  const { summary, revenueChart, topProducts, pendingDealers, isLoading, error, fetchAll } = useDashboardStore();
+  const { summary, recentInvoices, isLoading, error, fetchAll } = useDashboardStore();
+  const { user } = useAuthStore();
 
   useEffect(() => { fetchAll(); }, []);
 
   const onRefresh = useCallback(() => { fetchAll(); }, []);
 
-  if (isLoading && !summary) return <AppLoader fullScreen label="Checking System Health..." />;
+  if (isLoading && !summary) return <AppLoader fullScreen label="SYNCING BUSINESS DATA..." />;
   if (error && !summary) return <AppError message={error} onRetry={fetchAll} />;
 
-  const todayRevenue = summary?.totalRevenueMTD || 0; 
+  const monthlyRevenue = summary?.totalRevenueMTD || 0; 
+  const userName = user?.name ? user.name.split(' ')[0].toUpperCase() : 'ADMIN';
 
   const RightAction = (
-    <TouchableOpacity style={styles.profileBtn} activeOpacity={0.8}>
-       <View style={styles.avatarWrap}>
-          <Feather name="settings" size={18} color={Colors.white} />
-       </View>
+    <TouchableOpacity 
+      style={styles.settingsBtn} 
+      activeOpacity={0.8}
+      onPress={() => router.push('/(app)/settings')}
+    >
+       <Settings size={20} color={Colors.white} strokeWidth={2} />
     </TouchableOpacity>
   );
 
@@ -39,11 +45,9 @@ export default function DashboardScreen() {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
       
-      {/* Normalized Top Navbar */}
       <AppHeader 
         logo={true} 
         rightAction={RightAction} 
-        subtitle={formatDate(new Date(), 'EEEE, dd MMM')}
       />
 
       <ScrollView
@@ -52,283 +56,146 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor={Colors.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.greetingText}>{getGreeting()}, RAHUL</Text>
+        <View style={styles.welcomeSection}>
+           <Text style={styles.greetingText}>HELLO, {userName}</Text>
+           <Text style={styles.subGreeting}>{formatDate(new Date(), 'EEEE, dd MMMM').toUpperCase()}</Text>
+        </View>
 
-        {/* Carbon Dark Revenue Card */}
-        <AppCard style={styles.heroCard} shadow="lg">
-          <View style={styles.heroTop}>
-            <Text style={styles.heroLabel}>TODAY'S EARNINGS</Text>
-            <View style={styles.trendPill}>
-              <Text style={styles.trendText}>↑ 12%</Text>
-            </View>
-          </View>
-          <Text style={styles.heroValue}>₹{Number(todayRevenue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
-          <View style={styles.heroDivider} />
-          <View style={styles.heroFooter}>
-            <View style={styles.heroStat}>
-              <Text style={styles.heroStatLabel}>MTD SALES</Text>
-              <Text style={styles.heroStatValue}>₹{Number(todayRevenue * 1.5).toLocaleString('en-IN')}</Text>
-            </View>
-            <TouchableOpacity style={styles.heroAction}>
-               <Feather name="chevron-right" size={18} color={Colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </AppCard>
+        <View style={styles.heroRow}>
+           <AppCard style={[styles.heroCard, { flex: 1, borderColor: Colors.primary }]}>
+             <View style={styles.heroHeader}>
+                <Text style={styles.heroLabel}>MONTHLY SALES</Text>
+                <TrendingUp size={14} color={Colors.primary} strokeWidth={2.5} />
+             </View>
+             <Text style={styles.heroValue}>{formatINR(monthlyRevenue)}</Text>
+             <View style={styles.trendRow}>
+                <ArrowUpRight size={10} color={Colors.success || '#4ADE80'} strokeWidth={3} />
+                <Text style={styles.trendText}>+12% VS LAST MONTH</Text>
+             </View>
+           </AppCard>
 
-        {/* Action Grid */}
-        <View style={styles.actionGrid}>
+           <AppCard style={[styles.heroCard, { flex: 1, borderColor: Colors.border }]}>
+             <View style={styles.heroHeader}>
+                <Text style={styles.heroLabel}>TOTAL DUES</Text>
+                <Clock size={14} color={Colors.error || '#FF3333'} strokeWidth={2.5} />
+             </View>
+             <Text style={[styles.heroValue, { color: Colors.white }]}>{formatINR(summary?.totalPendingAmount || 0)}</Text>
+             <TouchableOpacity style={styles.dueAction} onPress={() => router.push({ pathname: '/(app)/invoices', params: { status: 'unpaid' } })}>
+                <Text style={styles.dueActionText}>VIEW CUSTOMERS</Text>
+             </TouchableOpacity>
+           </AppCard>
+        </View>
+
+        <View style={styles.quickActions}>
           <TouchableOpacity 
             style={styles.actionItem} 
-            activeOpacity={0.7}
+            activeOpacity={0.8}
             onPress={() => router.push('/(app)/invoices')}
           >
-            <AppCard style={styles.actionCard} shadow="sm">
+            <AppCard style={styles.actionCard}>
                <View style={styles.iconCircle}>
-                 <Feather name="file-text" size={24} color={Colors.white} />
+                 <Layers size={24} color={Colors.primary} strokeWidth={2.5} />
                </View>
-               <Text style={styles.actionTitle}>RECENT BILLS</Text>
+               <Text style={styles.actionTitle}>ALL BILLS</Text>
             </AppCard>
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.actionItem} 
-            activeOpacity={0.7}
+            activeOpacity={0.8}
             onPress={() => router.push('/(app)/dealers')}
           >
-            <AppCard style={styles.actionCard} shadow="sm">
+            <AppCard style={styles.actionCard}>
                <View style={styles.iconCircle}>
-                 <Feather name="users" size={24} color={Colors.white} />
+                 <Users size={24} color={Colors.primary} strokeWidth={2.5} />
                </View>
-               <Text style={styles.actionTitle}>ACCOUNTS</Text>
+               <Text style={styles.actionTitle}>CUSTOMERS</Text>
             </AppCard>
           </TouchableOpacity>
         </View>
 
-        {/* Recent Transactions */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>RECENT ACTIVITY</Text>
+          <View style={styles.row}>
+            <Text style={styles.sectionTitle}>LATEST TRANSACTIONS</Text>
+          </View>
           <TouchableOpacity onPress={() => router.push('/(app)/invoices')}>
              <Text style={styles.viewMore}>VIEW ALL</Text>
           </TouchableOpacity>
         </View>
         
         <View style={styles.listContainer}>
-          {(pendingDealers || []).slice(0, 5).map((d, i) => (
-            <AppCard key={i} style={styles.listItem} shadow="sm" padded={false}>
-              <TouchableOpacity style={styles.listInner} onPress={() => router.push(`/(app)/dealers/${d._id}`)}>
-                <View style={styles.listInfo}>
-                  <Text style={styles.listCustomer}>{d.name}</Text>
-                  <Text style={styles.listMeta}>TRANSFERRED • {formatDate(new Date(), 'hh:mm a')}</Text>
-                </View>
-                <View style={styles.listRight}>
-                  <Text style={styles.listAmount}>{formatINR(d.balance)}</Text>
-                  <View style={[styles.statusBadge, { borderColor: i % 2 === 0 ? Colors.primary : Colors.border }]}>
-                    <Text style={[styles.statusText, { color: i % 2 === 0 ? Colors.primary : Colors.textMuted }]}>
-                      {i % 2 === 0 ? 'PAID' : 'PENDING'}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </AppCard>
-          ))}
+          {(recentInvoices?.length || 0) === 0 ? (
+             <View style={styles.emptyWrap}>
+                <Text style={styles.emptyText}>NO SALES RECORDED TODAY</Text>
+             </View>
+          ) : (
+            recentInvoices?.map((inv) => (
+              <InvoiceCard 
+                key={inv._id} 
+                invoice={inv} 
+                onPress={() => router.push(`/(app)/invoices/${inv._id}`)} 
+              />
+            ))
+          )}
         </View>
         
-        <View style={{ height: 120 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.background },
+  root: { flex: 1, backgroundColor: Colors.black },
   scroll: { flex: 1 },
-  content: { padding: Spacing.base, paddingBottom: 100 },
-  greetingText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: Colors.textSecondary,
-    letterSpacing: 2,
-    marginBottom: 20,
-    marginTop: 8,
+  content: { padding: 20 },
+  welcomeSection: { marginBottom: 28 },
+  greetingText: { fontSize: 26, fontWeight: '900', color: Colors.white, letterSpacing: -0.5 },
+  subGreeting: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, marginTop: 4, letterSpacing: 1.5 },
+  heroRow: { flexDirection: 'row', gap: 14, marginBottom: 28 },
+  heroCard: { 
+    backgroundColor: Colors.surface, 
+    padding: 18, 
+    borderRadius: 22, 
+    borderWidth: 1.5, 
+    borderColor: Colors.border,
+    minHeight: 120,
+    justifyContent: 'space-between',
   },
-  profileBtn: {
-    padding: 2,
-    borderRadius: 8,
-    borderWidth: 1,
+  heroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  heroLabel: { color: Colors.textMuted, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
+  heroValue: { color: Colors.white, fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12 },
+  trendText: { color: Colors.success || '#4ADE80', fontSize: 9, fontWeight: '700' },
+  dueAction: { marginTop: 12 },
+  dueActionText: { color: Colors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  quickActions: { flexDirection: 'row', gap: 16, marginBottom: 36 },
+  actionItem: { flex: 1 },
+  actionCard: { 
+    backgroundColor: Colors.surface, 
+    alignItems: 'center', 
+    paddingVertical: 24, 
+    borderRadius: 22, 
+    borderWidth: 1.5, 
     borderColor: Colors.border,
   },
-  avatarWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroCard: {
-    backgroundColor: Colors.black,
-    padding: 24,
-    marginBottom: Spacing.lg,
-    borderRadius: Radius.lg,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-  },
-  heroTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  heroLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-  },
-  trendPill: {
-    backgroundColor: 'rgba(255, 107, 0, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  trendText: {
-    color: Colors.primary,
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  heroValue: {
-    color: Colors.white,
-    fontSize: 34,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  heroDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: 16,
-    opacity: 0.5,
-  },
-  heroFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  heroStatLabel: {
-    color: Colors.textMuted,
-    fontSize: 9,
-    fontWeight: '800',
-    marginBottom: 4,
-    letterSpacing: 1.5,
-  },
-  heroStatValue: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  heroAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: 24,
-  },
-  actionItem: {
-    flex: 1,
-  },
-  actionCard: {
-    height: 110,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.black,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  actionTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: Colors.white,
-    letterSpacing: 1,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  iconCircle: { 
+    width: 56, 
+    height: 56, 
+    borderRadius: 28, 
+    backgroundColor: Colors.black, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
     marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: Colors.textSecondary,
-    letterSpacing: 2,
-  },
-  viewMore: {
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  listContainer: {
-    gap: 12,
-  },
-  listItem: {
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    backgroundColor: Colors.surface,
   },
-  listInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  listCustomer: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: Colors.white,
-  },
-  listMeta: {
-    fontSize: 10,
-    color: Colors.textMuted,
-    fontWeight: '700',
-    marginTop: 4,
-    letterSpacing: 1,
-  },
-  listRight: {
-    alignItems: 'flex-end',
-  },
-  listAmount: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: Colors.primary,
-    marginBottom: 6,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  statusText: {
-    fontSize: 9,
-    fontWeight: '900',
-  },
+  actionTitle: { fontSize: 10, fontWeight: '800', color: Colors.white, letterSpacing: 1 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionTitle: { fontSize: 12, fontWeight: '800', color: Colors.textSecondary, letterSpacing: 1 },
+  viewMore: { fontSize: 11, fontWeight: '800', color: Colors.primary },
+  listContainer: { paddingBottom: 100 },
+  emptyWrap: { padding: 40, alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 20, borderStyle: 'dashed', borderWidth: 1.5, borderColor: Colors.border },
+  emptyText: { color: Colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  settingsBtn: { padding: 10, backgroundColor: Colors.surface, borderRadius: 12, borderWidth: 1, borderColor: Colors.border },
 });

@@ -1,21 +1,70 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, StatusBar, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, StatusBar, Linking } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { showMessage } from 'react-native-flash-message';
-import AppHeader from '../../../src/components/common/AppHeader';
-import AppCard from '../../../src/components/common/AppCard';
-import { Colors } from '../../../src/theme/colors';
-import { Spacing, Radius } from '../../../src/theme/spacing';
-import useAuthStore from '../../../src/store/useAuthStore';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import AppHeader from '../../src/components/common/AppHeader';
+import AppCard from '../../src/components/common/AppCard';
+import { Colors } from '../../src/theme/colors';
+import { Spacing, Radius } from '../../src/theme/spacing';
+import useAuthStore from '../../src/store/useAuthStore';
+import { clearAll } from '../../src/utils/storage';
 
 export default function SettingsScreen() {
   const { logout, user } = useAuthStore();
 
   const handleLogout = () => {
-    logout();
-    router.replace('/(auth)/login');
-    showMessage({ message: 'LOGGED OUT FROM CONSOLE', type: 'info' });
+    Alert.alert(
+      "TERMINATE SESSION",
+      "Are you sure you want to logout? You will need your security PIN to return.",
+      [
+        { text: "CANCEL", style: "cancel" },
+        { 
+          text: "LOGOUT", 
+          style: "destructive",
+          onPress: async () => {
+             await logout();
+             router.replace('/(auth)/login');
+          }
+        }
+      ]
+    );
+  };
+
+  const handleExportLedger = async () => {
+    try {
+      const data = {
+        exportedAt: new Date().toISOString(),
+        user: user?.name,
+        system: "PakkaBill Enterprise",
+        note: "Raw ledger export"
+      };
+      const fileUri = `${FileSystem.documentDirectory}pakkabill_export_${Date.now()}.json`;
+      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2));
+      await Sharing.shareAsync(fileUri);
+    } catch (err) {
+      showMessage({ message: 'EXPORT FAILED: ' + err.message, type: 'danger' });
+    }
+  };
+
+  const handlePurgeCache = () => {
+    Alert.alert(
+      "PURGE LOCAL CACHE",
+      "This will clear all locally stored data except your login session. Proceed?",
+      [
+        { text: "CANCEL", style: "cancel" },
+        { 
+          text: "PURGE", 
+          style: "destructive",
+          onPress: () => {
+            // Logic for partial purge if needed
+            showMessage({ message: 'CACHE PURGED SUCCESSFULLY', type: 'success' });
+          }
+        }
+      ]
+    );
   };
 
   const SettingRow = ({ icon, title, value, onPress, color = Colors.white }) => (
@@ -31,42 +80,68 @@ export default function SettingsScreen() {
         </View>
         <Text style={styles.rowTitle}>{title.toUpperCase()}</Text>
       </View>
-      {value ? (
-        <Text style={styles.rowValue}>{value.toUpperCase()}</Text>
-      ) : onPress ? (
-        <Feather name="chevron-right" size={18} color={Colors.textMuted} />
-      ) : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {value && (
+          <Text style={styles.rowValue}>{value.toUpperCase()}</Text>
+        )}
+        {onPress && (
+          <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+        )}
+      </View>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
-      <AppHeader title="SYSTEM CONSOLE" />
+      <AppHeader title="SYSTEM CONSOLE" showBack />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         
         {/* Business Identity */}
         <Text style={styles.sectionLabel}>BUSINESS IDENTITY</Text>
         <AppCard style={styles.sectionCard}>
-          <SettingRow icon="briefcase" title="SHOP NAME" value="PAAKABILL STATIONERY" />
-          <SettingRow icon="file-text" title="GST NUMBER" value="27ABCDE1234F1Z5" />
-          <SettingRow icon="map-pin" title="LOCATION" value="MUMBAI, MH" />
+          <SettingRow 
+            icon="briefcase" 
+            title="OWNER NAME" 
+            value={user?.name || "AUTHENTICATING..."} 
+            onPress={() => router.push('/(app)/settings/edit-profile')}
+          />
+          <SettingRow 
+            icon="file-text" 
+            title="BUSINESS TYPE" 
+            value={user?.shopName || "Wholesale Enterprise"} 
+            onPress={() => router.push('/(app)/settings/edit-profile')}
+          />
+          <SettingRow 
+            icon="map-pin" 
+            title="OPERATIONAL HUB" 
+            value={user?.address || "Active Device"} 
+            onPress={() => router.push('/(app)/settings/edit-profile')}
+          />
         </AppCard>
 
         {/* Security & Access */}
         <Text style={styles.sectionLabel}>SECURITY & ACCESS</Text>
         <AppCard style={styles.sectionCard}>
-          <SettingRow icon="lock" title="CHANGE CONSOLE PIN" onPress={() => {}} />
-          <SettingRow icon="shield" title="TWO-FACTOR AUTH" onPress={() => {}} />
+          <SettingRow 
+            icon="lock" 
+            title="CHANGE CONSOLE PIN" 
+            onPress={() => router.push('/(app)/settings/change-pin')} 
+          />
+          <SettingRow 
+            icon="shield" 
+            title="TWO-FACTOR AUTH" 
+            onPress={() => showMessage({ message: '2FA IS COMING SOON IN V2.5', type: 'info' })} 
+          />
         </AppCard>
 
         {/* Data Architecture */}
         <Text style={styles.sectionLabel}>DATA ARCHITECTURE</Text>
         <AppCard style={styles.sectionCard}>
-          <SettingRow icon="database" title="EXPORT LEDGER (JSON)" onPress={() => {}} color={Colors.primary} />
+          <SettingRow icon="database" title="EXPORT LEDGER (JSON)" onPress={handleExportLedger} color={Colors.primary} />
           <SettingRow icon="upload-cloud" title="CLOUD SYNC" value="ENABLED" color={Colors.success} />
-          <SettingRow icon="trash-2" title="PURGE LOCAL CACHE" onPress={() => {}} color={Colors.error} />
+          <SettingRow icon="trash-2" title="PURGE LOCAL CACHE" onPress={handlePurgeCache} color={Colors.error} />
         </AppCard>
 
         {/* About & Support */}

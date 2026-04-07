@@ -1,14 +1,13 @@
 import React from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Search, XCircle } from 'lucide-react-native';
 import { Colors } from '../../theme/colors';
-import { Typography } from '../../theme/typography';
-import { Spacing, Radius, Shadow } from '../../theme/spacing';
+import { Spacing, Radius } from '../../theme/spacing';
 
 export default function AppSearchBar({ value, onChangeText, placeholder = 'Search...', onClear, style }) {
   return (
     <View style={[styles.container, style]}>
-      <Feather name="search" size={18} color={Colors.primary} style={styles.icon} />
+      <Search size={20} color={Colors.primary} strokeWidth={2.5} style={styles.icon} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -18,10 +17,12 @@ export default function AppSearchBar({ value, onChangeText, placeholder = 'Searc
         returnKeyType="search"
         clearButtonMode="never"
         selectionColor={Colors.primary}
+        autoCapitalize="none"
+        autoCorrect={false}
       />
       {value?.length > 0 && (
         <TouchableOpacity onPress={onClear || (() => onChangeText(''))} style={styles.clearBtn}>
-          <Feather name="x-circle" size={18} color={Colors.textMuted} />
+          <XCircle size={18} color={Colors.textMuted} strokeWidth={2} />
         </TouchableOpacity>
       )}
     </View>
@@ -32,21 +33,22 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface, // Carbon Dark surface instead of White
-    borderRadius: Radius.md, // Industrial radius
-    paddingHorizontal: Spacing.md,
-    height: 48,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 52,
     borderWidth: 1.5,
     borderColor: Colors.border,
   },
-  icon: { marginRight: Spacing.sm },
+  icon: { marginRight: 12 },
   input: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.white,
+    height: '100%',
   },
   clearBtn: {
-    padding: 2,
+    padding: 4,
   },
 });

@@ -20,19 +20,19 @@ class ProductRepository extends BaseRepository {
       .lean();
   }
 
-  async updateStock(id, quantityDelta) {
+  async updateStock(id, quantityDelta, options = {}) {
     return this.model.findByIdAndUpdate(
       id,
       { $inc: { stockQuantity: quantityDelta } },
-      { new: true }
+      { new: true, session: options.session }
     );
   }
 
-  async updateSalesStats(id, quantity, revenue, profit) {
+  async updateSalesStats(id, quantity, revenue, profit, options = {}) {
     return this.model.findByIdAndUpdate(
       id,
       { $inc: { unitsSold: quantity, revenue, profit } },
-      { new: true }
+      { new: true, session: options.session }
     );
   }
 
