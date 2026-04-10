@@ -6,8 +6,8 @@ const ApiResponse = require('../utils/ApiResponse');
 class InvoiceController {
   async list(req, res, next) {
     try {
-      const { status = 'all', page = 1, limit = 20 } = req.query;
-      const result = await invoiceService.list(status, Number(page), Number(limit));
+      const { q = '', status = 'all', page = 1, limit = 20 } = req.query;
+      const result = await invoiceService.list(q, status, Number(page), Number(limit));
       ApiResponse.success(res, result.data, 'Invoices fetched', 200, result.pagination);
     } catch (err) { next(err); }
   }
@@ -26,10 +26,17 @@ class InvoiceController {
     } catch (err) { next(err); }
   }
 
+  async update(req, res, next) {
+    try {
+      const invoice = await invoiceService.updateInvoice(req.params.id, req.body);
+      ApiResponse.success(res, invoice, 'Invoice updated');
+    } catch (err) { next(err); }
+  }
+
   async downloadPDF(req, res, next) {
     try {
       const invoice = await invoiceService.getById(req.params.id);
-      const pdfBuffer = await pdfService.generateInvoicePDF(invoice);
+      const pdfBuffer = await pdfService.generateInvoicePDF(invoice, req.user);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceId}.pdf"`);
       res.send(pdfBuffer);
@@ -43,7 +50,18 @@ class InvoiceController {
       const link = whatsappService.getWhatsAppLink(invoice.dealerPhone, message);
 
       if (whatsappService.ready) {
-        await whatsappService.sendMessage(invoice.dealerPhone, message, 'invoice', invoice._id, invoice.dealer);
+        // 1. Generate the PDF on the fly
+        const pdfBuffer = await pdfService.generateInvoicePDF(invoice, req.user);
+        
+        // 2. Prepare base64 payload for WhatsApp Document
+        const mediaData = {
+          mimetype: 'application/pdf',
+          base64: pdfBuffer.toString('base64'),
+          filename: `Invoice_${invoice.invoiceId}.pdf`
+        };
+
+        // 3. Send message with attached PDF!
+        await whatsappService.sendMessage(invoice.dealerPhone, message, 'invoice', invoice._id, invoice.dealer, mediaData);
       }
 
       ApiResponse.success(res, { link }, 'WhatsApp message queued');

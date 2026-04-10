@@ -10,8 +10,18 @@ class InvoiceRepository extends BaseRepository {
     return this.findAll({ dealer: dealerId }, options);
   }
 
-  async findByStatus(status, options = {}) {
-    const filter = status && status !== 'all' ? { paymentStatus: status } : {};
+  async search(query, status, options = {}) {
+    const filter = {};
+    if (status && status !== 'all') filter.paymentStatus = status;
+
+    if (query) {
+      filter.$or = [
+        { invoiceId: { $regex: query, $options: 'i' } },
+        { dealerName: { $regex: query, $options: 'i' } },
+        { dealerShop: { $regex: query, $options: 'i' } }
+      ];
+    }
+
     return this.findAll(filter, { ...options, populate: 'dealer' });
   }
 

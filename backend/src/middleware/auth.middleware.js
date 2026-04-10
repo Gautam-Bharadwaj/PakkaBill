@@ -6,11 +6,15 @@ const User = require('../models/User.model');
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    let token;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.query && req.query.token) {
+      token = req.query.token;
+    } else {
       throw ApiError.unauthorized('No token provided');
     }
 
-    const token = authHeader.split(' ')[1];
     let decoded;
     try {
       decoded = jwt.verify(token, env.JWT_SECRET);

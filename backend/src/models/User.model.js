@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
     pin: { type: String, required: true, select: false },
     role: { type: String, enum: ['admin'], default: 'admin' },
     shopName: { type: String, default: '' },
+    contactNo: { type: String, default: '' },
     gstNumber: { type: String, default: '' },
     address: { type: String, default: '' },
     upiVpa: { type: String, default: '' },

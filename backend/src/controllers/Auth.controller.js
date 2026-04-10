@@ -4,9 +4,29 @@ const ApiResponse = require('../utils/ApiResponse');
 class AuthController {
   async signup(req, res, next) {
     try {
-      const { name, pin } = req.body;
-      const result = await authService.signup(name, pin);
+      const { name, pin, shopName, contactNo, otpCode } = req.body;
+      const result = await authService.signup(name, pin, shopName, contactNo, otpCode);
       ApiResponse.success(res, result, 'Account created successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async requestOtp(req, res, next) {
+    try {
+      const { contactNo } = req.body;
+      const result = await authService.requestOtp(contactNo);
+      ApiResponse.success(res, result, 'OTP sent via WhatsApp');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async resendOtp(req, res, next) {
+    try {
+      const { contactNo } = req.body;
+      const result = await authService.resendOtp(contactNo);
+      ApiResponse.success(res, result, 'OTP resent via WhatsApp');
     } catch (err) {
       next(err);
     }
@@ -14,8 +34,8 @@ class AuthController {
 
   async login(req, res, next) {
     try {
-      const { pin, name } = req.body;
-      const result = await authService.login(pin, name);
+      const { name, pin, shopName } = req.body;
+      const result = await authService.login(name, pin, shopName);
       ApiResponse.success(res, result, 'Login successful');
     } catch (err) {
       next(err);

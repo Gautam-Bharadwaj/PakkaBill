@@ -1,14 +1,13 @@
 const PDFDocument = require('pdfkit');
-const path = require('path');
-const fs = require('fs');
 
 class PDFService {
   _formatINR(amount) {
-    return `Rs. ${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    return `${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   }
 
-  async generateInvoicePDF(invoice) {
+  async generateInvoicePDF(invoice, user) {
     return new Promise((resolve, reject) => {
+      // Professional sizing with standard margins
       const doc = new PDFDocument({ margin: 40, size: 'A4' });
       const buffers = [];
 
@@ -16,106 +15,112 @@ class PDFService {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
       doc.on('error', reject);
 
-      const primary = '#1A237E';
+      // --- COLOR PALETTE ---
+      const brandColor = '#FF6B00';
+      const charcoal = '#1F2937';
+      const softText = '#6B7280';
+      const skyBg = '#F3F4F6';
 
-      // Header background
-      doc.rect(0, 0, doc.page.width, 80).fill(primary);
+      // --- HEADER: EXECUTIVE STYLE ---
+      doc.rect(0, 0, doc.page.width, 120).fill(charcoal); // Dark Header Bar
+      doc.rect(0, 115, doc.page.width, 5).fill(brandColor); // Thin Brand Accent Line
 
-      // Company name
-      doc.fillColor('white').fontSize(22).font('Helvetica-Bold')
-        .text('Billo Billings', 40, 20);
-      doc.fontSize(10).font('Helvetica')
-        .text('Wholesale Notebook Management', 40, 48);
+      // Logo/Business Name
+      doc.fillColor('white').fontSize(26).font('Helvetica-Bold')
+        .text(user?.shopName?.toUpperCase() || 'BILLO BUSINESS', 45, 45);
+      
+      doc.fillColor('white').fontSize(10).font('Helvetica')
+        .text(user?.address || 'Premium Wholesale & Distribution', 45, 78, { opacity: 0.8 })
+        .text(`Phone: ${user?.phone || '+91 XXX XXX XXXX'}`, 45, 92);
 
-      // Invoice title
-      doc.fillColor(primary).fontSize(18).font('Helvetica-Bold')
-        .text('INVOICE', doc.page.width - 160, 20, { width: 120, align: 'right' });
-      doc.fillColor('#555').fontSize(10).font('Helvetica')
-        .text(`# ${invoice.invoiceId}`, doc.page.width - 160, 48, { width: 120, align: 'right' });
+      // Invoice Label
+      doc.fillColor(brandColor).fontSize(28).font('Helvetica-Bold')
+        .text('INVOICE', 350, 45, { align: 'right', width: 200 });
+      
+      doc.fillColor('white').fontSize(12).font('Helvetica-Bold')
+        .text(`# ${invoice.invoiceId.toUpperCase()}`, 350, 78, { align: 'right', width: 200 });
 
-      // Divider
-      doc.moveDown(2);
+      // --- BILLING INFO CARDS ---
+      doc.moveDown(6);
+      const startY = 150;
 
-      const colLeft = 40;
-      const colRight = 320;
-      const y = 110;
+      // Bill To Card
+      doc.rect(40, startY, 250, 85).fill(skyBg);
+      doc.fillColor(brandColor).fontSize(10).font('Helvetica-Bold').text('CLIENT DETAILS', 55, startY + 12);
+      doc.fillColor(charcoal).fontSize(13).font('Helvetica-Bold').text(invoice.dealerName.toUpperCase(), 55, startY + 28);
+      doc.fillColor(softText).fontSize(10).font('Helvetica')
+        .text(invoice.dealerShop, 55, startY + 45)
+        .text(`Ref: ${invoice.dealerPhone}`, 55, startY + 58);
 
-      // Dealer info
-      doc.fillColor('#333').fontSize(11).font('Helvetica-Bold').text('Bill To:', colLeft, y);
-      doc.fillColor('#555').fontSize(10).font('Helvetica')
-        .text(invoice.dealerName, colLeft, y + 16)
-        .text(invoice.dealerShop, colLeft, y + 30)
-        .text(`Phone: ${invoice.dealerPhone}`, colLeft, y + 44);
+      // Summary Card (Right)
+      doc.rect(320, startY, 235, 85).fill(skyBg);
+      doc.fillColor(brandColor).fontSize(10).font('Helvetica-Bold').text('PAYMENT SUMMARY', 335, startY + 12);
+      doc.fillColor(charcoal).fontSize(11).font('Helvetica-Bold').text(`DATED: ${new Date(invoice.createdAt).toLocaleDateString('en-IN')}`, 335, startY + 32);
+      
+      const statusColor = invoice.paymentStatus === 'paid' ? '#10B981' : '#EF4444';
+      doc.fillColor(statusColor).fontSize(11).font('Helvetica-Bold').text(`STATUS: ${invoice.paymentStatus.toUpperCase()}`, 335, startY + 52);
 
-      // Invoice details
-      doc.fillColor('#333').fontSize(11).font('Helvetica-Bold').text('Invoice Details:', colRight, y);
-      doc.fillColor('#555').fontSize(10).font('Helvetica')
-        .text(`Date: ${new Date(invoice.createdAt).toLocaleDateString('en-IN')}`, colRight, y + 16)
-        .text(`Status: ${invoice.paymentStatus.toUpperCase()}`, colRight, y + 30)
-        .text(`Payment: ${invoice.paymentMode}`, colRight, y + 44);
+      // --- ITEMS GRID ---
+      const gridTop = 265;
+      doc.rect(40, gridTop, 515, 25).fill(charcoal);
+      
+      const colX = { name: 55, qty: 320, rate: 380, total: 470 };
+      doc.fillColor('white').fontSize(10).font('Helvetica-Bold');
+      doc.text('ITEM DESCRIPTION', colX.name, gridTop + 8);
+      doc.text('QTY', colX.qty, gridTop + 8, { width: 40, align: 'center' });
+      doc.text('RATE', colX.rate, gridTop + 8, { width: 80, align: 'right' });
+      doc.text('TOTAL', colX.total, gridTop + 8, { width: 80, align: 'right' });
 
-      // Line items table
-      const tableTop = y + 90;
-      const headers = ['Product', 'Qty', 'Price', 'Disc%', 'Total'];
-      const colWidths = [220, 40, 80, 50, 80];
-      const colX = [40, 260, 300, 380, 430];
-
-      // Table header
-      doc.rect(40, tableTop, doc.page.width - 80, 22).fill('#1A237E');
-      doc.fillColor('white').fontSize(9).font('Helvetica-Bold');
-      headers.forEach((h, i) => {
-        doc.text(h, colX[i], tableTop + 6, { width: colWidths[i], align: i > 0 ? 'right' : 'left' });
-      });
-
-      // Table rows
-      let rowY = tableTop + 26;
+      let rowY = gridTop + 25;
+      doc.font('Helvetica').fontSize(10);
+      
       invoice.lineItems.forEach((item, idx) => {
-        const bg = idx % 2 === 0 ? '#F5F6FA' : 'white';
-        doc.rect(40, rowY, doc.page.width - 80, 20).fill(bg);
-        doc.fillColor('#333').fontSize(9).font('Helvetica');
-        doc.text(item.productName, colX[0], rowY + 5, { width: colWidths[0] });
-        doc.text(String(item.quantity), colX[1], rowY + 5, { width: colWidths[1], align: 'right' });
-        doc.text(this._formatINR(item.unitPrice), colX[2], rowY + 5, { width: colWidths[2], align: 'right' });
-        doc.text(`${item.discountPercent}%`, colX[3], rowY + 5, { width: colWidths[3], align: 'right' });
-        doc.text(this._formatINR(item.lineTotal), colX[4], rowY + 5, { width: colWidths[4], align: 'right' });
-        rowY += 20;
+        const rowColor = idx % 2 === 0 ? 'white' : '#FAFAFA';
+        doc.rect(40, rowY, 515, 25).fill(rowColor);
+        
+        doc.fillColor(charcoal).text(item.productName, colX.name, rowY + 8, { width: 250 });
+        doc.text(String(item.quantity), colX.qty, rowY + 8, { width: 40, align: 'center' });
+        doc.text(this._formatINR(item.unitPrice), colX.rate, rowY + 8, { width: 80, align: 'right' });
+        doc.text(this._formatINR(item.lineTotal), colX.total, rowY + 8, { width: 80, align: 'right' });
+        
+        rowY += 25;
+        doc.moveTo(40, rowY).lineTo(555, rowY).strokeColor('#EEEEEE').lineWidth(0.5).stroke();
       });
 
-      // Summary box
-      const summaryX = doc.page.width - 220;
-      rowY += 16;
+      // --- FINANCIAL CALCULATION ---
+      const calcX = 360;
+      rowY += 25;
 
-      const rows = [
-        ['Subtotal', invoice.subtotal],
-        ['Discount', -invoice.discountTotal],
-        [`GST (${invoice.gstRate}%)`, invoice.gstAmount],
-      ];
+      const drawCalc = (label, value, font = 'Helvetica', color = softText, size = 10) => {
+        doc.fillColor(color).fontSize(size).font(font).text(label, calcX, rowY);
+        doc.text(`Rs. ${this._formatINR(value)}`, calcX + 90, rowY, { width: 90, align: 'right' });
+        rowY += 18;
+      };
 
-      doc.fontSize(9).font('Helvetica');
-      rows.forEach(([label, val]) => {
-        doc.fillColor('#555').text(label, summaryX, rowY, { width: 100 });
-        doc.fillColor('#333').text(this._formatINR(Math.abs(val)), summaryX + 100, rowY, { width: 80, align: 'right' });
-        rowY += 16;
-      });
+      drawCalc('Subtotal', invoice.subtotal);
+      if (invoice.gstAmount > 0) drawCalc(`GST (${invoice.gstRate}%)`, invoice.gstAmount);
+      if (invoice.discountTotal > 0) drawCalc('Discount Applied', -invoice.discountTotal);
 
-      // Grand total
-      doc.rect(summaryX - 10, rowY, 200, 24).fill(primary);
-      doc.fillColor('white').fontSize(11).font('Helvetica-Bold')
-        .text('TOTAL', summaryX, rowY + 6, { width: 100 })
-        .text(this._formatINR(invoice.totalAmount), summaryX + 100, rowY + 6, { width: 80, align: 'right' });
+      // Final Total Box
+      rowY += 10;
+      doc.rect(calcX - 10, rowY - 5, 205, 35).fill(brandColor);
+      doc.fillColor('white').fontSize(13).font('Helvetica-Bold').text('NET PAYABLE', calcX, rowY + 8);
+      doc.text(`Rs. ${this._formatINR(invoice.totalAmount)}`, calcX + 90, rowY + 8, { width: 90, align: 'right' });
 
-      rowY += 32;
-      doc.fillColor('#2E7D32').fontSize(9).font('Helvetica')
-        .text(`Amount Paid: ${this._formatINR(invoice.amountPaid)}`, summaryX, rowY);
-      rowY += 14;
+      rowY += 50;
 
-      if (invoice.amountDue > 0) {
-        doc.fillColor('#C62828').text(`Amount Due: ${this._formatINR(invoice.amountDue)}`, summaryX, rowY);
-      }
+      // --- ACCOUNTING FOOTER ---
+      doc.fillColor(charcoal).fontSize(10).font('Helvetica-Bold').text(`Amount Paid: Rs. ${this._formatINR(invoice.amountPaid)}`, 45, rowY);
+      doc.fillColor('#EF4444').fontSize(10).font('Helvetica-Bold').text(`Balance Due: Rs. ${this._formatINR(invoice.amountDue)}`, 45, rowY + 16);
 
-      // Footer
-      doc.fillColor('#AAA').fontSize(8).font('Helvetica')
-        .text('Generated by Billo Billings', 40, doc.page.height - 40, { align: 'center', width: doc.page.width - 80 });
+      // Bottom Bar
+      const footerY = doc.page.height - 80;
+      doc.rect(40, footerY, 515, 1).fill(charcoal).opacity(0.1);
+      doc.fillColor(charcoal).fontSize(10).font('Helvetica-Bold').text('TERMS & CONDITIONS', 45, footerY + 15);
+      doc.fillColor(softText).fontSize(8).font('Helvetica')
+        .text('1. Goods once sold will not be exchanged or returned. 2. Payments are due within terms.', 45, footerY + 28);
+
+      doc.fillColor(charcoal).fontSize(10).font('Helvetica-Bold').text('AUTHORIZED SIGNATORY', 380, footerY + 45, { align: 'right', width: 160 });
 
       doc.end();
     });

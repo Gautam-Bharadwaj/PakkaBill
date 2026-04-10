@@ -7,11 +7,11 @@ const { format } = require('date-fns');
 const Invoice = require('../models/Invoice.model');
 
 const generateInvoiceId = async () => {
-  const today = format(new Date(), 'yyyyMMdd');
-  const prefix = `INV-${today}-`;
+  const prefix = `INV-`;
 
+  // Find the invoice with the highest sequence number regardless of date
   const last = await Invoice.findOne(
-    { invoiceId: { $regex: `^${prefix}` } },
+    {},
     { invoiceId: 1 },
     { sort: { createdAt: -1 } }
   );
@@ -19,10 +19,14 @@ const generateInvoiceId = async () => {
   let seq = 1;
   if (last) {
     const parts = last.invoiceId.split('-');
-    seq = parseInt(parts[parts.length - 1], 10) + 1;
+    const lastSeq = parseInt(parts[parts.length - 1], 10);
+    if (!isNaN(lastSeq)) {
+      seq = lastSeq + 1;
+    }
   }
 
-  return `${prefix}${String(seq).padStart(5, '0')}`;
+  // Return a clean sequential ID
+  return `${prefix}${seq}`;
 };
 
 module.exports = { generateInvoiceId };

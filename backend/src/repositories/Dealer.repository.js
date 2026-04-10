@@ -11,6 +11,12 @@ class DealerRepository extends BaseRepository {
     const filter = query
       ? { $text: { $search: query } }
       : {};
+
+    // Apply exact status filtering (e.g. 'active', 'blocked')
+    if (options.status && options.status.toLowerCase() !== 'all') {
+      filter.status = options.status.toLowerCase();
+    }
+
     return this.findAll(filter, options);
   }
 
@@ -42,6 +48,14 @@ class DealerRepository extends BaseRepository {
     return this.model.findByIdAndUpdate(
       id,
       { $inc: { pendingAmount: -amount } },
+      { new: true, ...options }
+    );
+  }
+
+  async adjustPendingOnly(id, amount, options = {}) {
+    return this.model.findByIdAndUpdate(
+      id,
+      { $inc: { pendingAmount: amount } },
       { new: true, ...options }
     );
   }

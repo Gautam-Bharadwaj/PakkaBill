@@ -25,6 +25,7 @@ const invoiceSchema = z.object({
 
 router.get('/', invoiceController.list.bind(invoiceController));
 router.post('/', validate(invoiceSchema), invoiceController.create.bind(invoiceController));
+router.put('/:id', validate(invoiceSchema), invoiceController.update.bind(invoiceController));
 router.get('/:id', invoiceController.getById.bind(invoiceController));
 router.get('/:id/pdf', invoiceController.downloadPDF.bind(invoiceController));
 router.post('/:id/send-whatsapp', invoiceController.sendWhatsApp.bind(invoiceController));
