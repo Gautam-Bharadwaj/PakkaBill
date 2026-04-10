@@ -27,7 +27,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   if (shouldHide) return null;
 
   const tabConfig = [
-    { name: 'dashboard/index', label: 'COMMAND', icon: 'activity' },
+    { name: 'dashboard/index', label: 'DASHBOARD', icon: 'activity' },
     { name: 'invoices/index', label: 'BILLS', icon: 'layers', badge: unpaidCount },
     { name: 'NEW_BILL' }, // Center FAB
     { name: 'products/index', label: 'STOCK', icon: 'box' },

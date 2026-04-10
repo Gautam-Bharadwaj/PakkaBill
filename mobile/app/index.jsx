@@ -1,10 +1,19 @@
 import { Redirect } from 'expo-router';
+import { View, ActivityIndicator } from 'react-native';
 import useAuthStore from '../src/store/useAuthStore';
+import { Colors } from '../src/theme/colors';
 
 export default function Index() {
-  const { isAuthenticated, hasRegistered } = useAuthStore();
+  const { isAuthenticated, isStorageLoaded } = useAuthStore();
   
+  if (!isStorageLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
   if (isAuthenticated) return <Redirect href="/(app)/dashboard" />;
-  if (hasRegistered) return <Redirect href="/(auth)/login" />;
-  return <Redirect href="/(auth)/signup" />;
+  return <Redirect href="/(auth)/login" />;
 }
