@@ -4,10 +4,14 @@
  */
 export const formatINR = (amount, decimals = 2) => {
   const num = Number(amount) || 0;
-  return `₹${num.toLocaleString('en-IN', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })}`;
+  const isNegative = num < 0;
+  const absNum = Math.abs(num);
+  const fixed = absNum.toFixed(decimals);
+  const [integers, fractions] = fixed.split('.');
+  const lastThree = integers.substring(integers.length - 3);
+  const otherNumbers = integers.substring(0, integers.length - 3);
+  const formattedInt = otherNumbers !== '' ? otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + lastThree : lastThree;
+  return `${isNegative ? '-' : ''}₹${formattedInt}${decimals > 0 ? '.' + fractions : ''}`;
 };
 
 export const parseINR = (str) => {
