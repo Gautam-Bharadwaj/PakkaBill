@@ -1,114 +1,110 @@
-# PAKKABILL | Industrial Billing Engine
+# PakkaBill | AI-Powered Billing Software
 
-**Carbon Dark Edition: Black, White, and Orange.**
-
-PakkaBill is a high-performance, industrial-grade mobile billing and inventory management application designed for modern wholesalers and retailers. Built with extreme contrast and efficiency, it provides a "Command Center" experience for managing sales, revenue, and customer accounts.
+PakkaBill is a modern billing and inventory management system designed for real businesses. It combines fast billing workflows with AI-driven insights to help users not just record transactions, but make smarter financial decisions.
 
 ---
 
-## Design System: Carbon Dark
-PakkaBill uses a bespoke **Carbon Dark** aesthetic optimized for high-impact visibility and efficiency:
-- **Primary Accent**: Electric Orange (`#FF6B00`) for high-reach actions and trend indicators.
-- **Background**: Pure Carbon Black (`#000000`) for battery conservation and contrast.
-- **Surface**: Deep Slate (`#121212`) for card depth and data separation.
-- **Typography**: Heavy, industrial-style bold weights and uppercase headers.
+## What Makes It Different
+
+Traditional billing software only tracks data.  
+PakkaBill goes a step further by adding an intelligent layer on top of it.
+
+- Fast invoice generation with GST support  
+- Real-time business insights  
+- AI-powered analytics and predictions  
+- Mobile-first, clean, high-contrast UI  
 
 ---
 
-##  Workflow Architecture
+## AI / ML Integrations
 
-### 1. General Application Workflow
-The core "Money Path" of the application, from authentication to sharing the digital receipt.
+PakkaBill includes a built-in intelligence layer that turns raw billing data into actionable insights:
+
+### Smart Demand Forecasting
+Predicts which products will sell more based on past transactions.
+
+### Customer Segmentation
+Automatically groups customers based on buying behavior.
+
+### Revenue Insights
+Provides insights such as:
+- Top-performing products  
+- High-value customers  
+- Revenue trends  
+
+### Future Scope
+- Cash flow prediction  
+- Anomaly detection (fraud or unusual billing patterns)  
+- AI assistant for querying business data  
+
+---
+
+## Core Features
+
+### Billing System
+- GST-compliant invoice generation  
+- Product and SKU management  
+- Customer management  
+
+### Dashboard
+- Monthly revenue tracking  
+- Growth indicators  
+- Business performance overview  
+
+### Digital Receipts
+- PDF generation  
+- WhatsApp sharing  
+
+### Security
+- PIN-based authentication system  
+
+---
+
+## Architecture Overview
+
+### General Application Workflow
 
 ```mermaid
 graph TD
-    A[Start] --> B{Auth/PIN 123456}
+    A[Start] --> B{Auth/PIN}
     B -- Failure --> B
-    B -- Success --> C[Dashboard Command Center]
-    
-    C --> D[Create Bill action]
-    D --> E[Search & Add Products]
-    E --> F[Select/Add Customer]
-    F --> G[Review Totals & GST]
+    B -- Success --> C[Dashboard]
+
+    C --> D[Create Bill]
+    D --> E[Add Products]
+    E --> F[Add Customer]
+    F --> G[Review + GST]
     G --> H[Generate Bill]
-    
-    H --> I[Digital Receipt Preview]
-    I --> J[Action: WhatsApp Share]
-    I --> K[Action: PDF Download]
+
+    H --> I[Receipt Preview]
+    I --> J[WhatsApp Share]
+    I --> K[PDF Download]
 ```
-
-### 2. AI / ML Implementation Workflow
-A specialized workflow illustrating how the predictive intelligence layer orchestrates demand forecasting and segmentation.
-
+### AI/ML INTEGRATION
 ```mermaid
 graph LR
-    subgraph "Data Storage"
-        T[(Transaction DB)]
-        P[(Product DB)]
+    subgraph Data
+        T[(Transactions)]
+        P[(Products)]
     end
 
-    subgraph "Logic Layer (ML.service.js)"
-        O[Orchestrator Client]
+    subgraph Processing
+        O[ML Service Layer]
     end
 
-    subgraph "Prediction Engine"
-        E{{External ML API}}
+    subgraph AI Engine
+        E{{ML API}}
     end
 
-    subgraph "Insights UI"
-        I1[Demand Forecast]
-        I2[Segment Analysis]
+    subgraph Output
+        I1[Forecasting]
+        I2[Customer Insights]
     end
 
-    T & P --> O
-    O -- Features --> E
-    E -- Prediction --> O
-    O -- Resilience Fallback --> O
-    O --> I1 & I2
+    T --> O
+    P --> O
+    O --> E
+    E --> O
+    O --> I1
+    O --> I2
 ```
-
----
-
-## Key Feature Matrix
-- **Command Center (Dashboard)**: Real-time MTD revenue tracking with dynamic growth indicators.
-- **Billing Engine**: Industrial-strength bill generation with GST compliance and SKU management.
-- **Growth Analytics**: Precision trend tracking and product performance SKU meters.
-- **Digital Receipt**: High-contrast digital receipts with WhatsApp sharing and PDF generation.
-- **Secure Console**: Professional PIN-based login (Pattern: Carbon Industrial).
-
----
-
-## Access Credentials
-> [!IMPORTANT]
-> **Default Admin PIN**: **`123456`**
-
----
-
-## Technology Stack
-- **Mobile Hardware**: React Native (via Expo), Expo Router.
-- **Backend Architecture**: Node.js, Express.js.
-- **Persistence Layer**: MongoDB (Mongoose).
-- **Communication**: Axios, WhatsApp API integration.
-- **UI/UX Framework**: Reanimated, Skia, Victory Native.
-
----
-
-## Deployment Instructions
-
-### 1. Backend Persistence Server (Port 5001)
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-### 2. Mobile Client (Carbon Studio)
-```bash
-cd mobile
-npm install
-npx expo start
-```
-
----
-
-
