@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, FlatList, Text, StyleSheet, TouchableOpacity, StatusBar, Dimensions, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Plus, History } from 'lucide-react-native';
 import useInvoiceStore from '../../../src/store/useInvoiceStore';
 import InvoiceCard from '../../../src/components/invoice/InvoiceCard';
 import AppLoader from '../../../src/components/common/AppLoader';
 import AppError from '../../../src/components/common/AppError';
 import AppHeader from '../../../src/components/common/AppHeader';
+import AppSearchBar from '../../../src/components/common/AppSearchBar';
 import { Colors } from '../../../src/theme/colors';
 
 const FILTERS = [
@@ -17,16 +18,26 @@ const FILTERS = [
 ];
 
 export default function InvoicesScreen() {
+  const localParams = useLocalSearchParams();
+  const params = localParams || {};
+  const status = params.status;
   const { invoices, isLoading, error, fetchInvoices } = useInvoiceStore();
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState(status || 'all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => { 
-    fetchInvoices({ status: filter }); 
-  }, [filter]);
+    if (params.status && params.status !== filter) {
+      setFilter(params.status);
+    }
+  }, [params.status]);
+
+  useEffect(() => { 
+    fetchInvoices({ status: filter, q: search }); 
+  }, [filter, search]);
 
   const onRefresh = useCallback(() => { 
-    fetchInvoices({ status: filter }); 
-  }, [filter]);
+    fetchInvoices({ status: filter, q: search }); 
+  }, [filter, search]);
 
   return (
     <View style={styles.root}>
@@ -34,6 +45,12 @@ export default function InvoicesScreen() {
       <AppHeader title="BILLING HISTORY" showBack />
 
       <View style={styles.filterSection}>
+        <AppSearchBar 
+           value={search} 
+           onChangeText={setSearch} 
+           placeholder="SEARCH BILLS BY CUSTOMER OR ID..." 
+        />
+        
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           {FILTERS.map((f) => (
             <TouchableOpacity 
@@ -101,12 +118,12 @@ export default function InvoicesScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
   filterSection: { 
-    paddingVertical: 16,
+    padding: 24,
     backgroundColor: Colors.black,
-    borderBottomWidth: 1,
+    borderBottomWidth: 1.5,
     borderBottomColor: Colors.border,
   },
-  filterScroll: { paddingHorizontal: 20, gap: 10 },
+  filterScroll: { marginTop: 16, gap: 10 },
   chip: { 
     paddingHorizontal: 18, 
     paddingVertical: 10, 

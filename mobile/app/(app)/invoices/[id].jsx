@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   ScrollView, View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Linking, Share, Dimensions, StatusBar, Platform,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
-import { Share2, Zap, RotateCw, FileText, PlusCircle } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
+import { Share2, Zap, RotateCw, FileText, PlusCircle, History } from 'lucide-react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { showMessage } from 'react-native-flash-message';
 import useInvoiceStore from '../../../src/store/useInvoiceStore';
@@ -18,6 +19,8 @@ import { formatINR } from '../../../src/utils/currency';
 import { formatDate } from '../../../src/utils/date';
 import { getInvoicePdfUrl } from '../../../src/api/invoice.api';
 import { openWhatsApp, buildInvoiceMessage } from '../../../src/utils/whatsapp';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -25,29 +28,61 @@ export default function InvoiceDetailScreen() {
   const { id } = useLocalSearchParams();
   const { currentInvoice: invoice, isLoading, error, fetchInvoice } = useInvoiceStore();
 
-  useEffect(() => {
-    fetchInvoice(id);
-  }, [id]);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchInvoice(id);
+    }, [id])
+  );
 
   if (isLoading || !invoice) return <AppLoader fullScreen label="Finalizing Receipt Details..." />;
   if (error) return <AppError message={error} onRetry={() => fetchInvoice(id)} />;
 
-  const handleWhatsApp = () => {
-    const message = buildInvoiceMessage(invoice);
-    openWhatsApp(invoice.dealerPhone, message);
-  };
-
-  const handleShare = async () => {
+  const handleSharePDF = async () => {
     try {
-      await Share.share({
-        message: buildInvoiceMessage(invoice),
-        url: getInvoicePdfUrl(id),
-        title: `Bill ${invoice.invoiceId}`,
+      const pdfUrl = await getInvoicePdfUrl(id);
+      
+      // 📂 Step 1: Download to local cache
+      const fileName = `Bill_${invoice.invoiceId.split('-').pop()}.pdf`;
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+      const download = await FileSystem.downloadAsync(pdfUrl, fileUri);
+      
+      if (download.status !== 200) {
+        throw new Error(`Server returned status ${download.status}`);
+      }
+
+      // 📋 Step 2: Auto-Copy summary for the user to paste as caption
+      const summaryText = buildInvoiceMessage(invoice, ''); // Just the summary, no link
+      await Clipboard.setStringAsync(summaryText);
+      
+      showMessage({
+        message: 'Details Copied!',
+        description: 'Now sharing PDF. Just PASTE into the WhatsApp box.',
+        type: 'success',
+        icon: 'success',
+        duration: 3000,
       });
+
+      // 📤 Step 3: Use Native Sharing for ACTUAL FILE
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(download.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Share Bill #${invoice.invoiceId.split('-').pop()}`,
+          UTI: 'com.adobe.pdf',
+        });
+      }
     } catch (err) {
-      showMessage({ message: 'Sharing failed', type: 'danger' });
+      console.error('[Sharing Error]', err);
+      showMessage({ 
+        message: 'Download failed', 
+        description: 'Try opening the PDF link instead.',
+        type: 'danger' 
+      });
     }
   };
+
+  const handleShare = handleSharePDF;
+
+
 
   const handleReorder = () => {
     router.push({
@@ -59,7 +94,10 @@ export default function InvoiceDetailScreen() {
     });
   };
 
-  const handlePDF = () => Linking.openURL(`${getInvoicePdfUrl(id)}`);
+  const handlePDF = async () => {
+    const pdfUrl = await getInvoicePdfUrl(id);
+    Linking.openURL(pdfUrl);
+  };
 
   const RightAction = (
     <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
@@ -156,10 +194,18 @@ export default function InvoiceDetailScreen() {
         <View style={styles.actionPanel}>
             <TouchableOpacity 
               style={styles.actionReorder} 
-              onPress={handleReorder}
+              onPress={() => router.push({ pathname: '/(app)/invoices/new', params: { dealerId: invoice.dealerId, editId: id } })}
             >
                <RotateCw size={18} color={Colors.primary} strokeWidth={2} />
-               <Text style={styles.actionReorderText}>MAKE THIS BILL AGAIN</Text>
+               <Text style={styles.actionReorderText}>EDIT THIS BILL</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionReorder, { marginTop: -4 }]} 
+              onPress={handleReorder}
+            >
+               <RotateCw size={18} color={Colors.textMuted} strokeWidth={2} />
+               <Text style={[styles.actionReorderText, { color: Colors.textMuted }]}>MAKE THIS BILL AGAIN</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -170,23 +216,34 @@ export default function InvoiceDetailScreen() {
                <Text style={styles.actionPriText}>CREATE ANOTHER BILL</Text>
             </TouchableOpacity>
 
-            <View style={styles.buttonRow}>
-                <TouchableOpacity 
-                  style={[styles.actionSecondary, { flex: 1 }]} 
-                  onPress={handlePDF}
-                >
-                   <FileText size={18} color={Colors.white} strokeWidth={2} />
-                   <Text style={[styles.actionSecText, { fontSize: 13 }]}>PDF</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.actionWhatsApp, { flex: 1 }]} 
-                  onPress={handleWhatsApp}
-                >
-                   <FontAwesome name="whatsapp" size={22} color={Colors.black} />
-                   <Text style={[styles.actionPriText, { fontSize: 13 }]}>WHATSAPP</Text>
-                </TouchableOpacity>
+            <View style={styles.shareCard}>
+                <Text style={styles.shareCardTitle}>SHARE TO WHATSAPP</Text>
+                <View style={styles.buttonRow}>
+                    <TouchableOpacity 
+                      style={styles.actionWhatsAppText} 
+                      onPress={handleSendWhatsAppText}
+                    >
+                       <FontAwesome name="whatsapp" size={18} color={Colors.white} />
+                       <Text style={styles.actionSecText}>BILL TEXT</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={styles.actionWhatsAppPDF} 
+                      onPress={handleSharePDF}
+                    >
+                       <FileText size={18} color={Colors.black} />
+                       <Text style={styles.actionPriText}>BILL PDF</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
+
+            <TouchableOpacity 
+              style={[styles.actionSecondary, { marginTop: 16 }]} 
+              onPress={() => router.push(`/(app)/payments/${id}`)}
+            >
+               <History size={18} color={Colors.white} />
+               <Text style={styles.actionSecText}>MANAGE PAYMENTS</Text>
+            </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -302,12 +359,40 @@ const styles = StyleSheet.create({
   },
   actionSecText: { color: Colors.white, fontWeight: '600', marginLeft: 12, fontSize: 15 },
   buttonRow: { flexDirection: 'row', gap: 16 },
-  actionWhatsApp: {
+  actionWhatsAppText: {
+     flex: 1,
      flexDirection: 'row',
      alignItems: 'center',
      justifyContent: 'center',
-     height: 56,
-     borderRadius: 16,
-     backgroundColor: '#25D366', // WhatsApp Brand Color
+     height: 50,
+     borderRadius: 12,
+     backgroundColor: '#075E54', // WhatsApp Dark Green
+     borderWidth: 1,
+     borderColor: 'rgba(255,255,255,0.1)',
   },
+  actionWhatsAppPDF: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+ },
+ shareCard: {
+   backgroundColor: Colors.surface,
+   borderRadius: 20,
+   padding: 16,
+   borderWidth: 1.5,
+   borderColor: Colors.border,
+   marginTop: 8,
+ },
+ shareCardTitle: {
+   fontSize: 10,
+   fontWeight: '900',
+   color: Colors.textMuted,
+   letterSpacing: 1.5,
+   marginBottom: 16,
+   textAlign: 'center',
+ },
 });
