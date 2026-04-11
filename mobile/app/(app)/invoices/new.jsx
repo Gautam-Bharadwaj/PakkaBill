@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  KeyboardAvoidingView, Platform, Switch, StatusBar, Dimensions,
+  KeyboardAvoidingView, Platform, Switch, StatusBar, TextInput, Dimensions,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { UserCircle, CheckCircle2, Search, PlusCircle, RefreshCcw } from 'lucide-react-native';
@@ -11,36 +11,40 @@ import useProductStore from '../../../src/store/useProductStore';
 import useDealerStore from '../../../src/store/useDealerStore';
 import useInvoiceBuilder from '../../../src/hooks/useInvoiceBuilder';
 import ProductPickerModal from '../../../src/components/invoice/ProductPickerModal';
+import DealerPickerModal from '../../../src/components/invoice/DealerPickerModal';
 import LineItemRow from '../../../src/components/invoice/LineItemRow';
+import AiGstSuggestion from '../../../src/components/ai/AiGstSuggestion';
 import AppHeader from '../../../src/components/common/AppHeader';
 import AppCard from '../../../src/components/common/AppCard';
 import { Colors } from '../../../src/theme/colors';
 import { formatINR } from '../../../src/utils/currency';
 
 export default function NewInvoiceScreen() {
-  const { dealerId, reorderId } = useLocalSearchParams();
-  const { createInvoice, fetchInvoice } = useInvoiceStore();
+  const { dealerId, reorderId, editId } = useLocalSearchParams();
+  const { createInvoice, updateInvoice, fetchInvoice } = useInvoiceStore();
   const { recentlyUsed } = useProductStore();
   const { fetchDealer } = useDealerStore();
   const builder = useInvoiceBuilder();
   const [showPicker, setShowPicker] = useState(false);
+  const [showDealerPicker, setShowDealerPicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (dealerId) {
        fetchDealer(dealerId).then((d) => builder.setDealer(d));
-    } else if (!reorderId) {
-       // If no params, and not a reorder, ensure we start fresh
+    } else if (!reorderId && !editId) {
+       // If no params, and not a reorder/edit, ensure we start fresh
        builder.reset();
     }
     
-    if (reorderId) {
-       fetchInvoice(reorderId).then((inv) => {
+    if (reorderId || editId) {
+       const targetId = reorderId || editId;
+       fetchInvoice(targetId).then((inv) => {
          if (inv?.lineItems) builder.setReorderItems(inv.lineItems);
          if (inv?.gstRate) builder.setGstRate(inv.gstRate);
        });
     }
-  }, [dealerId, reorderId]);
+  }, [dealerId, reorderId, editId]);
 
   const handleCreate = async () => {
     if (!builder.dealer) {
@@ -53,9 +57,15 @@ export default function NewInvoiceScreen() {
     }
     setIsSubmitting(true);
     try {
-      const inv = await createInvoice(builder.buildPayload());
+      let inv;
+      if (editId) {
+        inv = await updateInvoice(editId, builder.buildPayload());
+        showMessage({ message: 'Success! Bill Updated Successfully', type: 'success' });
+      } else {
+        inv = await createInvoice(builder.buildPayload());
+        showMessage({ message: 'Success! Bill Created Successfully', type: 'success' });
+      }
       builder.reset();
-      showMessage({ message: 'Success! Bill Created Successfully', type: 'success' });
       router.replace(`/(app)/invoices/${inv._id}`);
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Bill Generation Failed';
@@ -68,7 +78,7 @@ export default function NewInvoiceScreen() {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
-      <AppHeader title="NEW BILL (EASY)" showBack />
+      <AppHeader title={editId ? "EDIT BILL" : "NEW BILL (EASY)"} showBack />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -81,7 +91,7 @@ export default function NewInvoiceScreen() {
           
           <TouchableOpacity 
             style={[styles.bigSelector, !!builder.dealer && styles.selectorActive]} 
-            onPress={() => router.push('/(app)/dealers')}
+            onPress={() => setShowDealerPicker(true)}
           >
             {builder.dealer ? (
               <View style={styles.selectionInfo}>
@@ -145,7 +155,12 @@ export default function NewInvoiceScreen() {
           )}
 
           {!!builder.lineItems.length && (
-            <AppCard style={styles.finalCard}>
+            <>
+              <AiGstSuggestion 
+                lineItems={builder.lineItems} 
+                onSuggestGst={(rate) => builder.setGstRate(rate)} 
+              />
+              <AppCard style={styles.finalCard}>
                <View style={styles.taxToggle}>
                   <View>
                     <Text style={styles.taxLabel}>APPLY 18% GST TAX?</Text>
@@ -158,11 +173,64 @@ export default function NewInvoiceScreen() {
                   />
                </View>
                <View style={styles.divider} />
+
+               {/* PAYMENT SECTION */}
+               <View style={{ marginBottom: 20 }}>
+                 <Text style={styles.taxLabel}>PAYMENT RECEIVED NOW</Text>
+                 <View style={styles.paymentRow}>
+                   <TouchableOpacity 
+                     style={[styles.payModeBtn, builder.paymentMode === 'full' && styles.payModeBtnActive]}
+                     onPress={() => { builder.setPaymentMode('full'); builder.setAmountPaid(builder.totalAmount.toString()); }}
+                   >
+                     <Text style={[styles.payModeText, builder.paymentMode === 'full' && styles.payModeTextActive]}>FULL</Text>
+                   </TouchableOpacity>
+
+                   <TouchableOpacity 
+                     style={[styles.payModeBtn, builder.paymentMode === 'credit' && styles.payModeBtnActive]}
+                     onPress={() => { builder.setPaymentMode('credit'); builder.setAmountPaid(''); }}
+                   >
+                     <Text style={[styles.payModeText, builder.paymentMode === 'credit' && styles.payModeTextActive]}>NONE (CREDIT)</Text>
+                   </TouchableOpacity>
+
+                   <TouchableOpacity 
+                     style={[styles.payModeBtn, builder.paymentMode === 'partial' && styles.payModeBtnActive]}
+                     onPress={() => { builder.setPaymentMode('partial'); builder.setAmountPaid(''); }}
+                   >
+                     <Text style={[styles.payModeText, builder.paymentMode === 'partial' && styles.payModeTextActive]}>PARTIAL</Text>
+                   </TouchableOpacity>
+                 </View>
+
+                 {builder.paymentMode === 'partial' && (
+                   <View style={styles.amountInputWrap}>
+                     <Text style={styles.currencySymbol}>₹</Text>
+                     <TextInput 
+                       style={styles.amountInput}
+                       placeholder="Enter amount paid..."
+                       placeholderTextColor={Colors.textMuted}
+                       keyboardType="numeric"
+                       value={builder.amountPaid}
+                       onChangeText={builder.setAmountPaid}
+                     />
+                   </View>
+                 )}
+               </View>
+               <View style={styles.divider} />
+
                <View style={styles.finalRow}>
                   <Text style={styles.finalLabel}>FINAL BILL TOTAL:</Text>
                   <Text style={styles.finalValue}>{formatINR(builder.totalAmount)}</Text>
                </View>
+               
+               {(builder.paymentMode === 'partial' || builder.paymentMode === 'credit') && (
+                 <View style={[styles.finalRow, { marginTop: 12 }]}>
+                    <Text style={styles.taxLabel}>PENDING DUES:</Text>
+                    <Text style={[styles.finalValue, { color: Colors.danger, fontSize: 18 }]}>
+                      {formatINR(builder.amountDue)}
+                    </Text>
+                 </View>
+               )}
             </AppCard>
+            </>
           )}
 
           <View style={{ height: 160 }} />
@@ -175,12 +243,15 @@ export default function NewInvoiceScreen() {
              disabled={isSubmitting || !builder.dealer || !builder.lineItems.length}
            >
               <CheckCircle2 size={24} color={Colors.black} strokeWidth={2.5} />
-              <Text style={styles.mainActionText}>{isSubmitting ? 'CREATING BILL...' : 'CREATE & SAVE BILL'}</Text>
+              <Text style={styles.mainActionText}>
+                {isSubmitting ? 'SAVING...' : editId ? 'SAVE CHANGES' : 'CREATE & SAVE BILL'}
+              </Text>
            </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
 
       <ProductPickerModal visible={showPicker} onClose={() => setShowPicker(false)} onSelect={builder.addProduct} />
+      <DealerPickerModal visible={showDealerPicker} onClose={() => setShowDealerPicker(false)} onSelect={(d) => builder.setDealer(d)} />
     </View>
   );
 }
@@ -234,6 +305,14 @@ const styles = StyleSheet.create({
   finalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   finalLabel: { fontSize: 14, fontWeight: '700', color: Colors.textMuted },
   finalValue: { fontSize: 24, fontWeight: '900', color: Colors.white },
+  paymentRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  payModeBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center' },
+  payModeBtnActive: { borderColor: Colors.primary, backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+  payModeText: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
+  payModeTextActive: { color: Colors.primary },
+  amountInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 12, paddingHorizontal: 16, marginTop: 12, borderWidth: 1, borderColor: Colors.border },
+  currencySymbol: { fontSize: 18, color: Colors.white, fontWeight: '700', marginRight: 8 },
+  amountInput: { flex: 1, height: 50, color: Colors.white, fontSize: 16, fontWeight: '600' },
   bottomBar: { 
     position: 'absolute', bottom: 0, left: 0, right: 0, 
     backgroundColor: Colors.black, 
