@@ -15,7 +15,7 @@ PakkaBill uses a bespoke **Carbon Dark** aesthetic optimized for high-impact vis
 
 ---
 
-## 🏗 Workflow Architecture
+##  Workflow Architecture
 
 ### 1. General Application Workflow
 The core "Money Path" of the application, from authentication to sharing the digital receipt.
