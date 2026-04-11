@@ -1,13 +1,13 @@
-# BILLO | Executive Invoicing & Intelligence
+# PakkaBill | Executive Invoicing & Intelligence
 
 **The Ultimate Billing System for Elite Wholesalers.**
 
-Billo is a high-performance, industrial-grade mobile billing and inventory management suite. Re-engineered for speed, brand authority, and predictive intelligence, it transforms standard invoicing into a premium "Executive Elite" experience.
+PakkaBill is a high-performance, industrial-grade mobile billing and inventory management suite. Re-engineered for speed, brand authority, and predictive intelligence, it transforms standard invoicing into a premium "Executive Elite" experience.
 
 ---
 
 ## The Executive Aesthetic
-Billo uses a bespoke obsidian-themed design system optimized for high-impact visibility:
+PakkaBill uses a bespoke obsidian-themed design system optimized for high-impact visibility:
 - **Primary Accent**: Electric Orange (`#FF6B00`) for high-reach actions and trend indicators.
 - **Background**: Pure Carbon Black (`#000000`) for battery conservation and peak contrast.
 - **Surface**: Obsidian Slate (`#080808`) for depth and professional data separation.
@@ -17,7 +17,7 @@ Billo uses a bespoke obsidian-themed design system optimized for high-impact vis
 
 ## Key Integrated Systems
 
-### 1. Billo AI Assistant (Intelligence Layer)
+### 1. PakkaBill AI Assistant (Intelligence Layer)
 A deep-integrated LLM engine that understands your business data in natural language.
 - **Revenue Queries**: Ask "What is my total sales for this week?" and get instant answers.
 - **Due Tracking**: Ask "Who owes me the most money?" to identify high-risk accounts.
@@ -45,7 +45,7 @@ graph TD
     A[Start] --> B{Console Access PIN}
     B -- Success --> C[Intelligence Dashboard]
     
-    C --> D[Billo AI: Financial Analysis]
+    C --> D[PakkaBill AI: Financial Analysis]
     C --> E[Create Executive Bill]
     
     E --> F[Add Products & Apply Smart GST]
