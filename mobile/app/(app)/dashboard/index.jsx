@@ -11,6 +11,8 @@ import AppCard from '../../../src/components/common/AppCard';
 import AppLoader from '../../../src/components/common/AppLoader';
 import AppError from '../../../src/components/common/AppError';
 import InvoiceCard from '../../../src/components/invoice/InvoiceCard';
+import AiInsightCard from '../../../src/components/dashboard/AiInsightCard';
+import AiChatWidget from '../../../src/components/ai/AiChatWidget';
 import { Colors } from '../../../src/theme/colors';
 import { formatINR } from '../../../src/utils/currency';
 import { formatDate } from '../../../src/utils/date';
@@ -61,6 +63,8 @@ export default function DashboardScreen() {
            <Text style={styles.subGreeting}>{formatDate(new Date(), 'EEEE, dd MMMM').toUpperCase()}</Text>
         </View>
 
+        <AiInsightCard />
+
         <View style={styles.heroRow}>
            <AppCard style={[styles.heroCard, { flex: 1, borderColor: Colors.primary }]}>
              <View style={styles.heroHeader}>
@@ -80,7 +84,7 @@ export default function DashboardScreen() {
                 <Clock size={14} color={Colors.error || '#FF3333'} strokeWidth={2.5} />
              </View>
              <Text style={[styles.heroValue, { color: Colors.white }]}>{formatINR(summary?.totalPendingAmount || 0)}</Text>
-             <TouchableOpacity style={styles.dueAction} onPress={() => router.push({ pathname: '/(app)/invoices', params: { status: 'unpaid' } })}>
+             <TouchableOpacity style={styles.dueAction} onPress={() => router.push({ pathname: '/invoices', params: { status: 'unpaid' } })}>
                 <Text style={styles.dueActionText}>VIEW CUSTOMERS</Text>
              </TouchableOpacity>
            </AppCard>
@@ -140,6 +144,8 @@ export default function DashboardScreen() {
         
         <View style={{ height: 140 }} />
       </ScrollView>
+
+      <AiChatWidget />
     </View>
   );
 }
