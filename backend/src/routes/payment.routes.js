@@ -18,5 +18,6 @@ const paymentSchema = z.object({
 router.post('/', validate(paymentSchema), paymentController.record.bind(paymentController));
 router.get('/:invoiceId', paymentController.getByInvoice.bind(paymentController));
 router.get('/:invoiceId/qr', paymentController.getQR.bind(paymentController));
+router.delete('/:id', paymentController.delete.bind(paymentController));
 
 module.exports = router;

@@ -30,6 +30,13 @@ class PaymentController {
       ApiResponse.success(res, { ...qrData, qrDataUrl }, 'QR generated');
     } catch (err) { next(err); }
   }
+
+  async delete(req, res, next) {
+    try {
+      await paymentService.deletePayment(req.params.id);
+      ApiResponse.success(res, null, 'Payment deleted');
+    } catch (err) { next(err); }
+  }
 }
 
 module.exports = new PaymentController();

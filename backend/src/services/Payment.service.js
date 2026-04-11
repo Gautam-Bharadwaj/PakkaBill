@@ -5,12 +5,8 @@ const ApiError = require('../utils/ApiError');
 
 class PaymentService {
   async recordPayment({ invoiceId, amount, mode, upiReference = '', note = '', userId }) {
-    const mongoose = require('mongoose');
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      const invoice = await invoiceRepo.findById(invoiceId, '', { session });
+      const invoice = await invoiceRepo.findById(invoiceId);
       if (!invoice) throw ApiError.notFound('Invoice not found');
 
       const actualDue = Math.max(0, invoice.amountDue || 0);
@@ -26,24 +22,27 @@ class PaymentService {
         upiReference,
         note,
         recordedBy: userId,
-      }, { session });
+      });
 
-      // Update invoice 
-      // Status is handled by Pre-Save hook in model automatically
+      const newAmountPaid = (invoice.amountPaid || 0) + amount;
+      const newAmountDue = parseFloat((invoice.totalAmount - newAmountPaid).toFixed(2));
+      
+      let newStatus = 'unpaid';
+      if (newAmountDue <= 0.05) newStatus = 'paid';
+      else if (newAmountPaid > 0) newStatus = 'partial';
+
       await invoiceRepo.update(invoice._id, {
-        $inc: { amountPaid: amount }
-      }, { session });
+        amountPaid: newAmountPaid,
+        amountDue: Math.max(0, newAmountDue),
+        paymentStatus: newStatus,
+      });
 
       // Update dealer pending Atomic
-      await dealerRepo.decrementPending(invoice.dealer, amount, { session });
+      await dealerRepo.decrementPending(invoice.dealer, amount);
 
-      await session.commitTransaction();
       return payment;
     } catch (err) {
-      await session.abortTransaction();
       throw err;
-    } finally {
-      session.endSession();
     }
   }
 
@@ -76,6 +75,38 @@ class PaymentService {
       amount: invoice.amountDue,
       invoiceId: invoice.invoiceId,
     };
+  }
+
+  async deletePayment(id) {
+    try {
+      const payment = await paymentRepo.findById(id);
+      if (!payment) throw ApiError.notFound('Payment not found');
+
+      const invoice = await invoiceRepo.findById(payment.invoice);
+      if (!invoice) throw ApiError.notFound('Invoice relative to payment not found');
+
+      // 1. Revert invoice totals
+      const newAmountPaid = Math.max(0, (invoice.amountPaid || 0) - payment.amount);
+      const newAmountDue = parseFloat((invoice.totalAmount - newAmountPaid).toFixed(2));
+      
+      let newStatus = 'unpaid';
+      if (newAmountDue <= 0.05) newStatus = 'paid';
+      else if (newAmountPaid > 0) newStatus = 'partial';
+
+      await invoiceRepo.update(invoice._id, {
+        amountPaid: newAmountPaid,
+        amountDue: newAmountDue,
+        paymentStatus: newStatus,
+      });
+
+      // 2. Revert dealer pending Global
+      await dealerRepo.adjustPendingOnly(invoice.dealer, payment.amount);
+
+      // 3. Delete record
+      return paymentRepo.delete(id);
+    } catch (err) {
+      throw err;
+    }
   }
 }
 
