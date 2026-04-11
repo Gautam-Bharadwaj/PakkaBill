@@ -85,5 +85,3 @@ npx expo start
 ```
 
 ---
-
-*Engineered by Antigravity Studio for Gautam Bharadwaj.*
