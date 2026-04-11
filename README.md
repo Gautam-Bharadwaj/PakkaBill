@@ -1,108 +1,83 @@
-# PAKKABILL | Industrial Billing Engine
+# BILLO | Executive Invoicing & Intelligence
 
-**Carbon Dark Edition: Black, White, and Orange.**
+**The Ultimate Billing System for Elite Wholesalers.**
 
-PakkaBill is a high-performance, industrial-grade mobile billing and inventory management application designed for modern wholesalers and retailers. Built with extreme contrast and efficiency, it provides a "Command Center" experience for managing sales, revenue, and customer accounts.
+Billo is a high-performance, industrial-grade mobile billing and inventory management suite. Re-engineered for speed, brand authority, and predictive intelligence, it transforms standard invoicing into a premium "Executive Elite" experience.
 
 ---
 
-## Design System: Carbon Dark
-PakkaBill uses a bespoke **Carbon Dark** aesthetic optimized for high-impact visibility and efficiency:
+## The Executive Aesthetic
+Billo uses a bespoke obsidian-themed design system optimized for high-impact visibility:
 - **Primary Accent**: Electric Orange (`#FF6B00`) for high-reach actions and trend indicators.
-- **Background**: Pure Carbon Black (`#000000`) for battery conservation and contrast.
-- **Surface**: Deep Slate (`#121212`) for card depth and data separation.
-- **Typography**: Heavy, industrial-style bold weights and uppercase headers.
+- **Background**: Pure Carbon Black (`#000000`) for battery conservation and peak contrast.
+- **Surface**: Obsidian Slate (`#080808`) for depth and professional data separation.
+- **Documents**: Executive Elite PDF design with charcoal headers and high-contrast financial grids.
 
 ---
 
-## 🏗 Workflow Architecture
+## Key Integrated Systems
 
-### 1. General Application Workflow
-The core "Money Path" of the application, from authentication to sharing the digital receipt.
+### 1. Billo AI Assistant (Intelligence Layer)
+A deep-integrated LLM engine that understands your business data in natural language.
+- **Revenue Queries**: Ask "What is my total sales for this week?" and get instant answers.
+- **Due Tracking**: Ask "Who owes me the most money?" to identify high-risk accounts.
+- **Smart GST**: Automatic tax suggestions based on product categories and SKU history.
+
+### 2. High-Fidelity Document Engine
+Professional document generation starting from sequential bill numbering (#00001).
+- **Executive PDF**: Corporate-grade design with structured client data and payment summaries.
+- **Smart WhatsApp Share**: Dual-action sharing that sends the PDF file and automatically copies professional captions to the clipboard for instant "Paste & Send" workflows.
+
+### 3. Financial Lifecycle Management
+Full-cycle payment tracking from partial deposits to fully cleared invoices.
+- **Manage Payments**: Log, review, and delete incorrect payments with automatic balance re-calculation.
+- **Stock Guard**: Real-time inventory tracking with low-stock alerts and advanced SKU management.
+
+---
+
+## Workflow Architecture
+
+### Core Financial Path
+The seamless journey from lead to payment.
 
 ```mermaid
 graph TD
-    A[Start] --> B{Auth/PIN 123456}
-    B -- Failure --> B
-    B -- Success --> C[Dashboard Command Center]
+    A[Start] --> B{Console Access PIN}
+    B -- Success --> C[Intelligence Dashboard]
     
-    C --> D[Create Bill action]
-    D --> E[Search & Add Products]
-    E --> F[Select/Add Customer]
-    F --> G[Review Totals & GST]
-    G --> H[Generate Bill]
+    C --> D[Billo AI: Financial Analysis]
+    C --> E[Create Executive Bill]
     
-    H --> I[Digital Receipt Preview]
-    I --> J[Action: WhatsApp Share]
-    I --> K[Action: PDF Download]
-```
-
-### 2. AI / ML Implementation Workflow
-A specialized workflow illustrating how the predictive intelligence layer orchestrates demand forecasting and segmentation.
-
-```mermaid
-graph LR
-    subgraph "Data Storage"
-        T[(Transaction DB)]
-        P[(Product DB)]
-    end
-
-    subgraph "Logic Layer (ML.service.js)"
-        O[Orchestrator Client]
-    end
-
-    subgraph "Prediction Engine"
-        E{{External ML API}}
-    end
-
-    subgraph "Insights UI"
-        I1[Demand Forecast]
-        I2[Segment Analysis]
-    end
-
-    T & P --> O
-    O -- Features --> E
-    E -- Prediction --> O
-    O -- Resilience Fallback --> O
-    O --> I1 & I2
+    E --> F[Add Products & Apply Smart GST]
+    F --> G[Generate Sequential Invoice]
+    
+    G --> H[Action: Executive PDF]
+    G --> I[Action: WhatsApp Smart Share]
+    
+    H & I --> J[Payment Collection & Logging]
 ```
 
 ---
 
-## Key Feature Matrix
-- **Command Center (Dashboard)**: Real-time MTD revenue tracking with dynamic growth indicators.
-- **Billing Engine**: Industrial-strength bill generation with GST compliance and SKU management.
-- **Growth Analytics**: Precision trend tracking and product performance SKU meters.
-- **Digital Receipt**: High-contrast digital receipts with WhatsApp sharing and PDF generation.
-- **Secure Console**: Professional PIN-based login (Pattern: Carbon Industrial).
+## Technology Architecture
+- **Terminal Framework**: React Native (Expo SDK 54), Expo Router.
+- **Core Intelligence**: Node.js, Express.js with custom RAG (Retrieval) AI logic.
+- **Data Persistence**: MongoDB (Mongoose Architecture).
+- **Document Rendering**: PDFKit (Industrial Configuration).
+- **UI Framework**: Reanimated 4, Lucide Icons, Victory Native.
 
 ---
 
-## Access Credentials
-> [!IMPORTANT]
-> **Default Admin PIN**: **`123456`**
+## Quick Setup
 
----
-
-## Technology Stack
-- **Mobile Hardware**: React Native (via Expo), Expo Router.
-- **Backend Architecture**: Node.js, Express.js.
-- **Persistence Layer**: MongoDB (Mongoose).
-- **Communication**: Axios, WhatsApp API integration.
-- **UI/UX Framework**: Reanimated, Skia, Victory Native.
-
----
-
-## Deployment Instructions
-
-### 1. Backend Persistence Server (Port 5001)
+### 1. Backend Core (Port 5001)
 ```bash
 cd backend
 npm install
 npm run dev
 ```
 
-### 2. Mobile Client (Carbon Studio)
+### 2. Mobile Console
 ```bash
 cd mobile
 npm install
@@ -111,4 +86,4 @@ npx expo start
 
 ---
 
-*Redesigned for Gautam Bharadwaj by Antigravity Studio.*
+*Engineered by Antigravity Studio for Gautam Bharadwaj.*
