@@ -111,4 +111,4 @@ npx expo start
 
 ---
 
-*Redesigned for Gautam Bharadwaj by Antigravity Studio.*
+
