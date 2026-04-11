@@ -1,5 +1,5 @@
 /**
- * WhatsApp service using whatsapp-web.js
+ * WhatsApp service using whatsapp-web.js (primary) + Twilio (fallback for OTP)
  * PATTERN: Observer — notifies on message status changes
  * Note: Initializes lazily and only when WHATSAPP_ENABLED=true
  */
@@ -46,7 +46,56 @@ class WhatsAppService {
     }
   }
 
-  async sendMessage(phone, body, type, invoiceId, dealerId) {
+  /**
+   * Send OTP via WhatsApp.
+   * Priority: Twilio API → whatsapp-web.js client → console fallback (dev)
+   */
+  async sendOtp(phone, otp) {
+    const body =
+      `*Billo Billings – OTP Verification*\n\n` +
+      `Your one-time password is: *${otp}*\n` +
+      `Valid for *5 minutes*. Do not share it with anyone.`;
+
+    // 1️⃣ Twilio WhatsApp (production-grade, no session needed)
+    if (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_WHATSAPP_FROM) {
+      try {
+        const twilio = require('twilio')(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
+        const cleanPhone = phone.replace(/\D/g, '');
+        const to = cleanPhone.startsWith('91') ? `+${cleanPhone}` : `+91${cleanPhone}`;
+
+        await twilio.messages.create({
+          from: `whatsapp:${env.TWILIO_WHATSAPP_FROM}`,
+          to: `whatsapp:${to}`,
+          body,
+        });
+
+        console.log(`[WhatsApp] OTP sent via Twilio to ${to}`);
+        return true;
+      } catch (err) {
+        console.error('[WhatsApp] Twilio OTP send failed:', err.message);
+        // Fall through to whatsapp-web.js
+      }
+    }
+
+    // 2️⃣ whatsapp-web.js local client
+    if (this.ready && this.client) {
+      try {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const chatId = cleanPhone.startsWith('91') ? `${cleanPhone}@c.us` : `91${cleanPhone}@c.us`;
+        await this.client.sendMessage(chatId, body);
+        console.log(`[WhatsApp] OTP sent via local client to ${chatId}`);
+        return true;
+      } catch (err) {
+        console.error('[WhatsApp] Local client OTP send failed:', err.message);
+      }
+    }
+
+    // 3️⃣ Dev fallback — log to console
+    console.log(`\n\n -----> [MOCK OTP] Phone: ${phone} | OTP: ${otp} <----- \n\n`);
+    return false;
+  }
+
+  async sendMessage(phone, body, type, invoiceId, dealerId, mediaData = null) {
     const log = await Message.create({
       to: phone,
       type,
@@ -66,7 +115,16 @@ class WhatsAppService {
       const cleanPhone = phone.replace(/\D/g, ''); // 🧼 Sanitize
       const chatId = cleanPhone.startsWith('91') ? `${cleanPhone}@c.us` : `91${cleanPhone}@c.us`;
       
-      await this.client.sendMessage(chatId, body);
+      let content = body;
+      let options = {};
+
+      if (mediaData) {
+        const { MessageMedia } = require('whatsapp-web.js');
+        content = new MessageMedia(mediaData.mimetype, mediaData.base64, mediaData.filename);
+        options = { caption: body };
+      }
+
+      await this.client.sendMessage(chatId, content, options);
       await Message.findByIdAndUpdate(log._id, { status: 'sent', sentAt: new Date() });
       return true;
     } catch (err) {
@@ -104,3 +162,4 @@ class WhatsAppService {
 }
 
 module.exports = new WhatsAppService();
+
