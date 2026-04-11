@@ -9,14 +9,18 @@ import AppSearchBar from '../../../src/components/common/AppSearchBar';
 import AppLoader from '../../../src/components/common/AppLoader';
 import AppEmpty from '../../../src/components/common/AppEmpty';
 import AppError from '../../../src/components/common/AppError';
+import ConfirmModal from '../../../src/components/common/ConfirmModal';
 import { Colors } from '../../../src/theme/colors';
 
 const FILTERS = ['ALL', 'ACTIVE', 'LOW STOCK'];
 
 export default function ProductsScreen() {
-  const { products, isLoading, error, fetchProducts } = useProductStore();
+  const { products, isLoading, error, fetchProducts, deleteProduct } = useProductStore();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ALL');
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleteName, setDeleteName] = useState('');
+  const [showModal, setShowModal] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   useEffect(() => {
@@ -26,6 +30,23 @@ export default function ProductsScreen() {
   const onRefresh = useCallback(() => {
     fetchProducts({ q: debouncedSearch, status: filter.toLowerCase() });
   }, [debouncedSearch, filter]);
+
+  const handleDelete = (id, name) => {
+    setDeleteId(id);
+    setDeleteName(name);
+    setShowModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteProduct(deleteId);
+      setShowModal(false);
+      require('react-native-flash-message').showMessage({ message: 'PRODUCT DELETED', type: 'success' });
+    } catch (err) {
+      require('react-native-flash-message').showMessage({ message: 'DELETE FAILED', type: 'danger' });
+    }
+  };
 
   const RightAction = (
     <TouchableOpacity 
@@ -90,10 +111,18 @@ export default function ProductsScreen() {
             <ProductCard 
               product={item} 
               onPress={() => router.push(`/(app)/products/${item._id}/edit`)} 
+              onDelete={() => handleDelete(item._id, item.name)}
             />
           )}
         />
       )}
+      <ConfirmModal 
+        visible={showModal}
+        title="DELETE PRODUCT"
+        message={`Are you sure you want to remove ${deleteName.toUpperCase()} from your stock? This action is permanent.`}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowModal(false)}
+      />
     </View>
   );
 }
