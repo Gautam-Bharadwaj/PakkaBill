@@ -7,7 +7,7 @@ class InvoiceController {
   async list(req, res, next) {
     try {
       const { q = '', status = 'all', page = 1, limit = 20 } = req.query;
-      const result = await invoiceService.list(q, status, Number(page), Number(limit));
+      const result = await invoiceService.list(q, status, Number(page), Number(limit), req.user._id);
       ApiResponse.success(res, result.data, 'Invoices fetched', 200, result.pagination);
     } catch (err) { next(err); }
   }
@@ -21,7 +21,7 @@ class InvoiceController {
 
   async create(req, res, next) {
     try {
-      const invoice = await invoiceService.create(req.body);
+      const invoice = await invoiceService.create({ ...req.body, owner: req.user._id });
       ApiResponse.created(res, invoice, 'Invoice created');
     } catch (err) { next(err); }
   }

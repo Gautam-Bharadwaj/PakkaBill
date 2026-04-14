@@ -5,7 +5,7 @@ const messageSchema = new mongoose.Schema(
     to: { type: String, required: true },
     type: {
       type: String,
-      enum: ['invoice', 'reminder', 'payment_receipt'],
+      enum: ['invoice', 'reminder', 'payment_receipt', 'otp'],
       required: true,
     },
     invoice: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },

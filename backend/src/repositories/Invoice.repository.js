@@ -10,8 +10,8 @@ class InvoiceRepository extends BaseRepository {
     return this.findAll({ dealer: dealerId }, options);
   }
 
-  async search(query, status, options = {}) {
-    const filter = {};
+  async search(query, status, options = {}, ownerId) {
+    const filter = { owner: ownerId };
     if (status && status !== 'all') filter.paymentStatus = status;
 
     if (query) {
@@ -35,12 +35,12 @@ class InvoiceRepository extends BaseRepository {
       .lean();
   }
 
-  async getRevenueByDay(days = 30) {
+  async getRevenueByDay(days = 30, ownerId) {
     const start = new Date();
     start.setDate(start.getDate() - days);
 
     return this.aggregate([
-      { $match: { createdAt: { $gte: start } } },
+      { $match: { owner: ownerId, createdAt: { $gte: start } } },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
@@ -53,13 +53,13 @@ class InvoiceRepository extends BaseRepository {
     ]);
   }
 
-  async getMonthlySummary() {
+  async getMonthlySummary(ownerId) {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
     const [result] = await this.aggregate([
-      { $match: { createdAt: { $gte: startOfMonth } } },
+      { $match: { owner: ownerId, createdAt: { $gte: startOfMonth } } },
       {
         $group: {
           _id: null,

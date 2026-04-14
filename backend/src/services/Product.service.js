@@ -2,8 +2,8 @@ const productRepo = require('../repositories/Product.repository');
 const ApiError = require('../utils/ApiError');
 
 class ProductService {
-  async list(query = '', status = 'all', page = 1, limit = 20) {
-    return productRepo.search(query, status, { page, limit });
+  async list(query = '', status = 'all', page = 1, limit = 20, ownerId) {
+    return productRepo.search(query, status, { page, limit }, ownerId);
   }
 
   async getById(id) {
@@ -12,10 +12,10 @@ class ProductService {
     return product;
   }
 
-  async create(data) {
-    const existing = await productRepo.findOne({ name: data.name });
+  async create(data, ownerId) {
+    const existing = await productRepo.findOne({ name: data.name, owner: ownerId });
     if (existing) throw ApiError.conflict('Product with this name already exists');
-    return productRepo.create(data);
+    return productRepo.create({ ...data, owner: ownerId });
   }
 
   async update(id, data) {
@@ -33,8 +33,8 @@ class ProductService {
     return productRepo.findLowStock();
   }
 
-  async getTopProducts(limit = 5) {
-    return productRepo.getTopProducts(limit);
+  async getTopProducts(limit = 5, ownerId) {
+    return productRepo.getTopProducts(limit, ownerId);
   }
 }
 

@@ -6,7 +6,7 @@ class DealerController {
   async list(req, res, next) {
     try {
       const { q = '', status = 'all', page = 1, limit = 20 } = req.query;
-      const result = await dealerService.list(q, status, Number(page), Number(limit));
+      const result = await dealerService.list(q, status, Number(page), Number(limit), req.user._id);
       ApiResponse.success(res, result.data, 'Dealers fetched', 200, result.pagination);
     } catch (err) { next(err); }
   }
@@ -20,7 +20,7 @@ class DealerController {
 
   async create(req, res, next) {
     try {
-      const dealer = await dealerService.create(req.body);
+      const dealer = await dealerService.create(req.body, req.user._id);
       ApiResponse.created(res, dealer, 'Dealer created');
     } catch (err) { next(err); }
   }

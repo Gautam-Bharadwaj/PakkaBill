@@ -7,10 +7,15 @@ class DealerRepository extends BaseRepository {
     super(Dealer);
   }
 
-  async search(query, options = {}) {
-    const filter = query
-      ? { $text: { $search: query } }
-      : {};
+  async search(query, options = {}, ownerId) {
+    const filter = { owner: ownerId };
+    if (query) {
+      filter.$or = [
+        { name: { $regex: query, $options: 'i' } },
+        { shopName: { $regex: query, $options: 'i' } },
+        { phone: { $regex: query, $options: 'i' } }
+      ];
+    }
 
     // Apply exact status filtering (e.g. 'active', 'blocked')
     if (options.status && options.status.toLowerCase() !== 'all') {
@@ -25,9 +30,9 @@ class DealerRepository extends BaseRepository {
     return this.findAll(filter, options);
   }
 
-  async findPendingDealers(limit = 10) {
+  async findPendingDealers(limit = 10, ownerId) {
     return this.model
-      .find({ pendingAmount: { $gt: 0 } })
+      .find({ owner: ownerId, pendingAmount: { $gt: 0 } })
       .sort({ pendingAmount: -1 })
       .limit(limit)
       .lean();

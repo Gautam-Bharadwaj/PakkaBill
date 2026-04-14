@@ -14,6 +14,7 @@ const lineItemSchema = new mongoose.Schema({
 const invoiceSchema = new mongoose.Schema(
   {
     invoiceId: { type: String, required: true, unique: true },
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     dealer: { type: mongoose.Schema.Types.ObjectId, ref: 'Dealer', required: true },
     dealerName: { type: String, required: true },
     dealerShop: { type: String, required: true },

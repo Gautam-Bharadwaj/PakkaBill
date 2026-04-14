@@ -9,9 +9,12 @@ class DashboardController {
   async getSummary(req, res, next) {
     try {
       const [monthly, pendingAmount, activeDealers] = await Promise.all([
-        invoiceService.getMonthlySummary(),
-        Dealer.aggregate([{ $group: { _id: null, total: { $sum: '$pendingAmount' } } }]),
-        Dealer.countDocuments({ status: 'active' }),
+        invoiceService.getMonthlySummary(req.user._id),
+        Dealer.aggregate([
+          { $match: { owner: req.user._id } },
+          { $group: { _id: null, total: { $sum: '$pendingAmount' } } }
+        ]),
+        Dealer.countDocuments({ owner: req.user._id, status: 'active' }),
       ]);
 
       ApiResponse.success(res, {
@@ -27,7 +30,7 @@ class DashboardController {
   async getRevenueChart(req, res, next) {
     try {
       const { days = 30 } = req.query;
-      const data = await invoiceService.getRevenueChart(Number(days));
+      const data = await invoiceService.getRevenueChart(Number(days), req.user._id);
       ApiResponse.success(res, data, 'Revenue chart data fetched');
     } catch (err) { next(err); }
   }
@@ -35,7 +38,7 @@ class DashboardController {
   async getTopProducts(req, res, next) {
     try {
       const { limit = 5 } = req.query;
-      const products = await productService.getTopProducts(Number(limit));
+      const products = await productService.getTopProducts(Number(limit), req.user._id);
       ApiResponse.success(res, products, 'Top products fetched');
     } catch (err) { next(err); }
   }
@@ -43,7 +46,7 @@ class DashboardController {
   async getPendingDealers(req, res, next) {
     try {
       const { limit = 10 } = req.query;
-      const dealers = await dealerService.getPendingDealers(Number(limit));
+      const dealers = await dealerService.getPendingDealers(Number(limit), req.user._id);
       ApiResponse.success(res, dealers, 'Pending dealers fetched');
     } catch (err) { next(err); }
   }

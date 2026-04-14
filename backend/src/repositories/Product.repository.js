@@ -6,9 +6,14 @@ class ProductRepository extends BaseRepository {
     super(Product);
   }
 
-  async search(query, status, options = {}) {
-    const filter = {};
-    if (query) filter.$text = { $search: query };
+  async search(query, status, options = {}, ownerId) {
+    const filter = { owner: ownerId };
+    if (query) {
+      filter.$or = [
+        { name: { $regex: query, $options: 'i' } },
+        { sku: { $regex: query, $options: 'i' } }
+      ];
+    }
     if (status && status !== 'all') filter.status = status;
     else if (!query) filter.status = { $ne: 'archived' };
     return this.findAll(filter, options);
@@ -36,9 +41,9 @@ class ProductRepository extends BaseRepository {
     );
   }
 
-  async getTopProducts(limit = 5) {
+  async getTopProducts(limit = 5, ownerId) {
     return this.model
-      .find({ status: 'active' })
+      .find({ owner: ownerId, status: 'active' })
       .sort({ unitsSold: -1 })
       .limit(limit)
       .lean();

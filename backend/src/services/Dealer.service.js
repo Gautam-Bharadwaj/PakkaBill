@@ -2,8 +2,8 @@ const dealerRepo = require('../repositories/Dealer.repository');
 const ApiError = require('../utils/ApiError');
 
 class DealerService {
-  async list(query = '', status, page = 1, limit = 20) {
-    return dealerRepo.search(query, { page, limit, status });
+  async list(query = '', status, page = 1, limit = 20, ownerId) {
+    return dealerRepo.search(query, { page, limit, status }, ownerId);
   }
 
   async getById(id) {
@@ -12,10 +12,10 @@ class DealerService {
     return dealer;
   }
 
-  async create(data) {
-    const existing = await dealerRepo.findOne({ phone: data.phone });
+  async create(data, ownerId) {
+    const existing = await dealerRepo.findOne({ phone: data.phone, owner: ownerId });
     if (existing) throw ApiError.conflict('A dealer with this phone already exists');
-    return dealerRepo.create(data);
+    return dealerRepo.create({ ...data, owner: ownerId });
   }
 
   async update(id, data) {
@@ -29,8 +29,8 @@ class DealerService {
     return dealerRepo.delete(id);
   }
 
-  async getPendingDealers(limit = 10) {
-    return dealerRepo.findPendingDealers(limit);
+  async getPendingDealers(limit = 10, ownerId) {
+    return dealerRepo.findPendingDealers(limit, ownerId);
   }
 }
 

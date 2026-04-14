@@ -178,8 +178,8 @@ class InvoiceService {
       return this.create(data);
   }
 
-  async list(q, status, page = 1, limit = 20) {
-    return invoiceRepo.search(q, status, { page, limit });
+  async list(q, status, page = 1, limit = 20, ownerId) {
+    return invoiceRepo.search(q, status, { page, limit }, ownerId);
   }
 
   async getById(id) {
@@ -192,12 +192,12 @@ class InvoiceService {
     return invoiceRepo.findByDealer(dealerId, { page, limit });
   }
 
-  async getRevenueChart(days = 30) {
-    return invoiceRepo.getRevenueByDay(days);
+  async getRevenueChart(days = 30, ownerId) {
+    return invoiceRepo.getRevenueByDay(days, ownerId);
   }
 
-  async getMonthlySummary() {
-    return invoiceRepo.getMonthlySummary();
+  async getMonthlySummary(ownerId) {
+    return invoiceRepo.getMonthlySummary(ownerId);
   }
 }
 

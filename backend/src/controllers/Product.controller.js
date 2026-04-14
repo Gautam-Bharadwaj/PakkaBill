@@ -5,7 +5,7 @@ class ProductController {
   async list(req, res, next) {
     try {
       const { q = '', status = 'all', page = 1, limit = 20 } = req.query;
-      const result = await productService.list(q, status, Number(page), Number(limit));
+      const result = await productService.list(q, status, Number(page), Number(limit), req.user._id);
       ApiResponse.success(res, result.data, 'Products fetched', 200, result.pagination);
     } catch (err) { next(err); }
   }
@@ -19,7 +19,7 @@ class ProductController {
 
   async create(req, res, next) {
     try {
-      const product = await productService.create(req.body);
+      const product = await productService.create(req.body, req.user._id);
       ApiResponse.created(res, product, 'Product created');
     } catch (err) { next(err); }
   }
