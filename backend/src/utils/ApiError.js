@@ -30,6 +30,10 @@ class ApiError extends Error {
   static internal(message = 'Internal server error') {
     return new ApiError(500, message);
   }
+
+  static tooMany(message = 'Too many requests') {
+    return new ApiError(429, message);
+  }
 }
 
 module.exports = ApiError;

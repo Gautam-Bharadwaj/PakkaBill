@@ -42,7 +42,18 @@ export default function InvoicesScreen() {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
-      <AppHeader title="BILLING HISTORY" showBack />
+      <AppHeader 
+        title="BILLING HISTORY" 
+        showBack 
+        rightAction={
+          <TouchableOpacity 
+            style={styles.headerPlus} 
+            onPress={() => router.push('/(app)/invoices/new')}
+          >
+            <Plus size={24} color={Colors.white} strokeWidth={2.5} />
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.filterSection}>
         <AppSearchBar 
@@ -102,15 +113,6 @@ export default function InvoicesScreen() {
           )}
         />
       )}
-
-      {/* Modern FAB */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        activeOpacity={0.9}
-        onPress={() => router.push('/(app)/invoices/new')}
-      >
-        <Plus size={32} color={Colors.black} strokeWidth={2.5} />
-      </TouchableOpacity>
     </View>
   );
 }

@@ -8,6 +8,9 @@ import paperTheme from '../src/theme/theme';
 import useAuthStore from '../src/store/useAuthStore';
 import useAppUpdate from '../src/hooks/useAppUpdate';
 import UpdatePrompt from '../src/components/update/UpdatePrompt';
+import { initDB } from '../src/utils/offline';
+import useInvoiceStore from '../src/store/useInvoiceStore';
+import NetInfo from '@react-native-community/netinfo';
 import { useState } from 'react';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,10 +18,24 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 export default function RootLayout() {
   const { loadFromStorage } = useAuthStore();
   const { updateAvailable, applyUpdate } = useAppUpdate();
+  const { syncOfflineData } = useInvoiceStore();
   const [showUpdate, setShowUpdate] = useState(false);
 
   useEffect(() => {
-    loadFromStorage();
+    const start = async () => {
+      await initDB();
+      await loadFromStorage();
+    };
+    start();
+
+    // Sync when network becomes available
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected && state.isInternetReachable) {
+        syncOfflineData();
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

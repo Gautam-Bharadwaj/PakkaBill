@@ -22,11 +22,14 @@ import { openWhatsApp, buildInvoiceMessage } from '../../../src/utils/whatsapp';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
+import { generateInvoicePDF, shareInvoicePDF } from '../../../src/services/PDFService';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function InvoiceDetailScreen() {
   const { id } = useLocalSearchParams();
   const { currentInvoice: invoice, isLoading, error, fetchInvoice } = useInvoiceStore();
+  const { user } = useAuthStore();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -39,50 +42,48 @@ export default function InvoiceDetailScreen() {
 
   const handleSharePDF = async () => {
     try {
-      const pdfUrl = await getInvoicePdfUrl(id);
-      
-      // 📂 Step 1: Download to local cache
-      const fileName = `Bill_${invoice.invoiceId.split('-').pop()}.pdf`;
-      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
-      const download = await FileSystem.downloadAsync(pdfUrl, fileUri);
-      
-      if (download.status !== 200) {
-        throw new Error(`Server returned status ${download.status}`);
-      }
+      // 🛠 Prepare mapping for PDF Service
+      const pdfData = {
+        ...invoice,
+        dealerName: invoice.dealer?.name || 'Walk-in Customer',
+        dealerShop: invoice.dealer?.shopName || '',
+        dealerPhone: invoice.dealer?.phone || '',
+      };
 
-      // 📋 Step 2: Auto-Copy summary for the user to paste as caption
-      const summaryText = buildInvoiceMessage(invoice, ''); // Just the summary, no link
-      await Clipboard.setStringAsync(summaryText);
+      const businessInfo = {
+        name: user?.businessName || 'PAKKABILL CORP',
+        address: user?.address || 'Hauz Khas, New Delhi',
+        phone: user?.phone || '',
+        gstin: user?.gstin || '07AAAAA0000A1Z5'
+      };
+
+      await shareInvoicePDF(pdfData, businessInfo);
       
       showMessage({
-        message: 'Details Copied!',
-        description: 'Now sharing PDF. Just PASTE into the WhatsApp box.',
+        message: 'Invoice Generated',
+        description: 'Sharing professional PDF...',
         type: 'success',
-        icon: 'success',
-        duration: 3000,
       });
-
-      // 📤 Step 3: Use Native Sharing for ACTUAL FILE
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(download.uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Share Bill #${invoice.invoiceId.split('-').pop()}`,
-          UTI: 'com.adobe.pdf',
-        });
-      }
     } catch (err) {
-      console.error('[Sharing Error]', err);
+      console.error('[PDF Sharing Error]', err);
       showMessage({ 
-        message: 'Download failed', 
-        description: 'Try opening the PDF link instead.',
+        message: 'PDF Generation failed', 
         type: 'danger' 
       });
     }
   };
 
+  const handleSendWhatsAppText = async () => {
+    try {
+      const message = buildInvoiceMessage(invoice, ''); // Local summary
+      const phone = invoice.dealer?.phone || '';
+      openWhatsApp(phone, message);
+    } catch (err) {
+      showMessage({ message: 'WhatsApp failed', type: 'danger' });
+    }
+  };
+
   const handleShare = handleSharePDF;
-
-
 
   const handleReorder = () => {
     router.push({
@@ -92,11 +93,6 @@ export default function InvoiceDetailScreen() {
         reorderId: id 
       }
     });
-  };
-
-  const handlePDF = async () => {
-    const pdfUrl = await getInvoicePdfUrl(id);
-    Linking.openURL(pdfUrl);
   };
 
   const RightAction = (

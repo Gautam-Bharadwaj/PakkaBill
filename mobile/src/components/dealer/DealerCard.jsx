@@ -42,7 +42,7 @@ export default function DealerCard({ dealer, onPress }) {
           </View>
           <TouchableOpacity 
             style={styles.callAction} 
-            onPress={() => Linking.openURL(`tel:${dealer.phone}`)}
+            onPress={() => Linking.openURL(`tel:${dealer.phone}`).catch(() => console.log('Dialer unavailable'))}
           >
              <Phone size={20} color={Colors.black} strokeWidth={2.5} />
           </TouchableOpacity>

@@ -10,3 +10,7 @@ build/
 .idea/
 coverage/
 package-lock.json
+
+backend/.wwebjs_auth/
+backend/.env
+mobile/.env

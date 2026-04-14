@@ -82,4 +82,12 @@ const styles = StyleSheet.create({
   logoText: { fontSize: 18, fontWeight: '900', color: Colors.white, letterSpacing: 1 },
   title: { fontSize: 14, fontWeight: '800', color: Colors.white, letterSpacing: 0.5 },
   subtitle: { fontSize: 8, color: Colors.primary, fontWeight: '700', letterSpacing: 1, marginTop: 2 },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
 });

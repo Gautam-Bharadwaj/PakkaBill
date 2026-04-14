@@ -142,10 +142,7 @@ export default function DashboardScreen() {
           )}
         </View>
         
-        <View style={{ height: 140 }} />
       </ScrollView>
-
-      <AiChatWidget />
     </View>
   );
 }

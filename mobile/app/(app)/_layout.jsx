@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, router } from 'expo-router';
-import { Activity, Layers, Package, Settings, Plus } from 'lucide-react-native';
+import { Home, Layers, Package, Settings, Plus } from 'lucide-react-native';
 import { View, TouchableOpacity, Text, StyleSheet, Platform, StatusBar, Dimensions } from 'react-native';
 import { Colors } from '../../src/theme/colors';
 import useInvoiceStore from '../../src/store/useInvoiceStore';
@@ -8,7 +8,7 @@ import useInvoiceStore from '../../src/store/useInvoiceStore';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const IconMap = {
-  activity: Activity,
+  home: Home,
   layers: Layers,
   box: Package,
   settings: Settings,
@@ -27,7 +27,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   if (shouldHide) return null;
 
   const tabConfig = [
-    { name: 'dashboard/index', label: 'DASHBOARD', icon: 'activity' },
+    { name: 'dashboard/index', label: 'DASHBOARD', icon: 'home' },
     { name: 'invoices/index', label: 'BILLS', icon: 'layers', badge: unpaidCount },
     { name: 'NEW_BILL' }, // Center FAB
     { name: 'products/index', label: 'STOCK', icon: 'box' },
@@ -56,7 +56,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
           const route = state.routes.find(r => r.name === tab.name);
           const isFocused = state.index === state.routes.indexOf(route);
           
-          const color = isFocused ? Colors.primary : Colors.textMuted;
+          const color = isFocused ? Colors.primary : Colors.textSecondary;
           const Icon = IconMap[tab.icon];
 
           const onPress = () => {

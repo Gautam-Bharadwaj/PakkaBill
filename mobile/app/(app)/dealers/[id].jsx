@@ -53,7 +53,7 @@ export default function DealerProfileScreen() {
           <Text style={styles.shop}>{dealer.shopName.toUpperCase()}</Text>
           <TouchableOpacity 
             style={styles.phoneTag}
-            onPress={() => Linking.openURL(`tel:${dealer.phone}`)}
+            onPress={() => Linking.openURL(`tel:${dealer.phone}`).catch(() => showMessage({ message: 'Dialer unavailable in simulator', type: 'info' }))}
           >
             <Feather name="phone" size={12} color={Colors.primary} />
             <Text style={styles.phoneText}> +91 {dealer.phone}</Text>
@@ -98,7 +98,7 @@ export default function DealerProfileScreen() {
           <AppButton
             title="CALL"
             variant="secondary"
-            onPress={() => Linking.openURL(`tel:${dealer.phone}`)}
+            onPress={() => Linking.openURL(`tel:${dealer.phone}`).catch(() => showMessage({ message: 'Dialer unavailable in simulator', type: 'info' }))}
             style={styles.actionBtn}
           />
         </View>
