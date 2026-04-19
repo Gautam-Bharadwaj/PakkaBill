@@ -8,6 +8,7 @@ import { Share2, Zap, RotateCw, FileText, PlusCircle, History } from 'lucide-rea
 import { FontAwesome } from '@expo/vector-icons';
 import { showMessage } from 'react-native-flash-message';
 import useInvoiceStore from '../../../src/store/useInvoiceStore';
+import useAuthStore from '../../../src/store/useAuthStore';
 import AppHeader from '../../../src/components/common/AppHeader';
 import AppLoader from '../../../src/components/common/AppLoader';
 import AppError from '../../../src/components/common/AppError';
@@ -107,7 +108,7 @@ export default function InvoiceDetailScreen() {
       
       {/* Normalized Top Navbar */}
       <AppHeader 
-        title="BILL PREVIEW" 
+        title="VIEW BILL" 
         showBack={true} 
         onBack={() => router.back()} 
         rightAction={RightAction}
@@ -122,8 +123,8 @@ export default function InvoiceDetailScreen() {
               <View style={styles.logoBadge}>
                 <Zap size={32} color={Colors.black} strokeWidth={2.5} fill={Colors.black} />
               </View>
-              <Text style={styles.businessName}>PAKKABILL CORP</Text>
-              <Text style={styles.businessSubs}>OFFICIAL BILL RECEIPT</Text>
+              <Text style={styles.businessName}>{user?.shopName?.toUpperCase() || 'PAKKABILL CORP'}</Text>
+              <Text style={styles.businessSubs}>OFFICIAL SALES RECEIPT</Text>
             </View>
 
             <View style={styles.thickDivider} />
@@ -132,7 +133,7 @@ export default function InvoiceDetailScreen() {
             <View style={styles.metaBox}>
               <View>
                 <Text style={styles.metaLabel}>BILL NO</Text>
-                <Text style={styles.metaValue}>#{invoice.invoiceId.split('-').pop()}</Text>
+                <Text style={styles.metaValue}>#{invoice?.invoiceId ? invoice.invoiceId.split('-').pop() : 'N/A'}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.metaLabel}>DATE & TIME</Text>
