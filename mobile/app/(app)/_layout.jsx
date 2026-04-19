@@ -16,7 +16,10 @@ const IconMap = {
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const invoices = useInvoiceStore((s) => s.invoices);
-  const unpaidCount = invoices.filter((inv) => inv.paymentStatus !== 'paid').length;
+  const unpaidCount = React.useMemo(() => 
+    invoices.filter((inv) => inv.paymentStatus !== 'paid').length, 
+    [invoices]
+  );
 
   const currentRoute = state.routes[state.index].name;
   

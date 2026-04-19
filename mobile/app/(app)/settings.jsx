@@ -17,8 +17,8 @@ export default function SettingsScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      "TERMINATE SESSION",
-      "Are you sure you want to logout? You will need your security PIN to return.",
+      "LOGOUT",
+      "Are you sure you want to exit? You will need your security PIN to return.",
       [
         { text: "CANCEL", style: "cancel" },
         { 
@@ -35,14 +35,10 @@ export default function SettingsScreen() {
 
   const handleExportLedger = async () => {
     try {
-      const data = {
-        exportedAt: new Date().toISOString(),
-        user: user?.name,
-        system: "PakkaBill Enterprise",
-        note: "Raw ledger export"
-      };
-      const fileUri = `${FileSystem.documentDirectory}pakkabill_export_${Date.now()}.json`;
-      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2));
+      const data = "Date,Customer,Total,Paid,Due\n" + 
+        (user?.name || "Billo User") + "," + new Date().toLocaleDateString() + ",Sample Export,0,0";
+      const fileUri = `${FileSystem.documentDirectory}ledger_report_${Date.now()}.csv`;
+      await FileSystem.writeAsStringAsync(fileUri, data);
       await Sharing.shareAsync(fileUri);
     } catch (err) {
       showMessage({ message: 'EXPORT FAILED: ' + err.message, type: 'danger' });
@@ -94,58 +90,58 @@ export default function SettingsScreen() {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
-      <AppHeader title="SYSTEM CONSOLE" showBack />
+      <AppHeader title="SETTINGS" showBack />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         
-        {/* Business Identity */}
-        <Text style={styles.sectionLabel}>BUSINESS IDENTITY</Text>
+        {/* My Business Profile */}
+        <Text style={styles.sectionLabel}>MY BUSINESS PROFILE</Text>
         <AppCard style={styles.sectionCard}>
           <SettingRow 
             icon="briefcase" 
             title="OWNER NAME" 
-            value={user?.name || "AUTHENTICATING..."} 
+            value={user?.name || "LOADING..."} 
             onPress={() => router.push('/(app)/settings/edit-profile')}
           />
           <SettingRow 
             icon="file-text" 
             title="BUSINESS TYPE" 
-            value={user?.shopName || "Wholesale Enterprise"} 
+            value={user?.shopName || "Wholesaler"} 
             onPress={() => router.push('/(app)/settings/edit-profile')}
           />
           <SettingRow 
             icon="map-pin" 
-            title="OPERATIONAL HUB" 
-            value={user?.address || "Active Device"} 
+            title="BUSINESS ADDRESS" 
+            value={user?.address || "Primary Store"} 
             onPress={() => router.push('/(app)/settings/edit-profile')}
           />
         </AppCard>
 
         {/* Security & Access */}
-        <Text style={styles.sectionLabel}>SECURITY & ACCESS</Text>
+        <Text style={styles.sectionLabel}>SECURITY & PIN</Text>
         <AppCard style={styles.sectionCard}>
           <SettingRow 
             icon="lock" 
-            title="CHANGE CONSOLE PIN" 
+            title="CHANGE LOGIN PIN" 
             onPress={() => router.push('/(app)/settings/change-pin')} 
           />
           <SettingRow 
             icon="shield" 
-            title="TWO-FACTOR AUTH" 
-            onPress={() => showMessage({ message: '2FA IS COMING SOON IN V2.5', type: 'info' })} 
+            title="SAFETY LOCK (2FA)" 
+            onPress={() => showMessage({ message: '2FA IS COMING SOON', type: 'info' })} 
           />
         </AppCard>
 
-        {/* Data Architecture */}
-        <Text style={styles.sectionLabel}>DATA ARCHITECTURE</Text>
+        {/* Reports & Backup */}
+        <Text style={styles.sectionLabel}>REPORTS & BACKUP</Text>
         <AppCard style={styles.sectionCard}>
-          <SettingRow icon="database" title="EXPORT LEDGER (JSON)" onPress={handleExportLedger} color={Colors.primary} />
-          <SettingRow icon="upload-cloud" title="CLOUD SYNC" value="ENABLED" color={Colors.success} />
-          <SettingRow icon="trash-2" title="PURGE LOCAL CACHE" onPress={handlePurgeCache} color={Colors.error} />
+          <SettingRow icon="database" title="EXPORT DAILY LEDGER (CSV)" onPress={handleExportLedger} color={Colors.primary} />
+          <SettingRow icon="upload-cloud" title="AUTOMATIC CLOUD SYNC" value="ON" color={Colors.success} />
+          <SettingRow icon="trash-2" title="CLEAR LOCAL STORAGE" onPress={handlePurgeCache} color={Colors.error} />
         </AppCard>
 
-        {/* About & Support */}
-        <Text style={styles.sectionLabel}>ENGINEERING & SUPPORT</Text>
+        {/* Support */}
+        <Text style={styles.sectionLabel}>SUPPORT & ABOUT</Text>
         <AppCard style={styles.sectionCard}>
           <SettingRow icon="cpu" title="VERSION" value="2.4.0-CARBON" />
           <SettingRow icon="github" title="SOURCE REPOSITORY" onPress={() => Linking.openURL('https://github.com/Gautam-Bharadwaj/PakkaBill')} />
@@ -155,7 +151,7 @@ export default function SettingsScreen() {
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Feather name="log-out" size={18} color={Colors.error} />
-          <Text style={styles.logoutText}>TERMINATE SESSION</Text>
+          <Text style={styles.logoutText}>LOGOUT</Text>
         </TouchableOpacity>
 
         <View style={{ height: 100 }} />

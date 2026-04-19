@@ -53,7 +53,7 @@ export default function EditProfileScreen() {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
-      <AppHeader title="BUSINESS IDENTITY" subtitle="MANAGE STORE DETAILS" showBack />
+      <AppHeader title="EDIT PROFILE" subtitle="MANAGE STORE DETAILS" showBack />
       
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
