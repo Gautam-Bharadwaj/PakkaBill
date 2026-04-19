@@ -3,7 +3,7 @@ import {
   ScrollView, View, Text, StyleSheet, RefreshControl, StatusBar, TouchableOpacity, Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Layers, Users, Settings, ArrowUpRight, TrendingUp, Clock } from 'lucide-react-native';
+import { Layers, Users, Settings, ArrowUpRight, ArrowDownRight, TrendingUp, Clock } from 'lucide-react-native';
 import useDashboardStore from '../../../src/store/useDashboardStore';
 import useAuthStore from '../../../src/store/useAuthStore';
 import AppHeader from '../../../src/components/common/AppHeader';
@@ -65,6 +65,31 @@ export default function DashboardScreen() {
 
         <AiInsightCard />
 
+        <View style={styles.quickActionsGrid}>
+           <TouchableOpacity 
+             style={[styles.primaryAction, { backgroundColor: Colors.primary }]}
+             activeOpacity={0.8}
+             onPress={() => router.push('/(app)/invoices/new')}
+           >
+              <View style={styles.actionHeader}>
+                <Layers size={22} color={Colors.black} strokeWidth={2.5} />
+                <Text style={styles.actionTag}>FAST</Text>
+              </View>
+              <Text style={styles.primaryActionTitle}>CREATE NEW BILL</Text>
+           </TouchableOpacity>
+
+           <TouchableOpacity 
+             style={[styles.primaryAction, { backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.border }]}
+             activeOpacity={0.8}
+             onPress={() => router.push('/(app)/dealers')}
+           >
+              <View style={styles.actionHeader}>
+                <Users size={22} color={Colors.primary} strokeWidth={2.5} />
+              </View>
+              <Text style={[styles.primaryActionTitle, { color: Colors.white }]}>MY CUSTOMERS</Text>
+           </TouchableOpacity>
+        </View>
+
         <View style={styles.heroRow}>
            <AppCard style={[styles.heroCard, { flex: 1, borderColor: Colors.primary }]}>
              <View style={styles.heroHeader}>
@@ -73,63 +98,42 @@ export default function DashboardScreen() {
              </View>
              <Text style={styles.heroValue}>{formatINR(monthlyRevenue)}</Text>
              <View style={styles.trendRow}>
-                <ArrowUpRight size={10} color={Colors.success || '#4ADE80'} strokeWidth={3} />
-                <Text style={styles.trendText}>+12% VS LAST MONTH</Text>
+                {summary?.revenueGrowth >= 0 ? (
+                  <ArrowUpRight size={10} color={Colors.success} strokeWidth={3} />
+                ) : (
+                  <ArrowDownRight size={10} color={Colors.error} strokeWidth={3} />
+                )}
+                <Text style={[styles.trendText, { color: summary?.revenueGrowth >= 0 ? Colors.success : Colors.error }]}>
+                  {summary?.revenueGrowth > 0 ? '+' : ''}{summary?.revenueGrowth || 0}% VS LAST MONTH
+                </Text>
              </View>
            </AppCard>
 
            <AppCard style={[styles.heroCard, { flex: 1, borderColor: Colors.border }]}>
              <View style={styles.heroHeader}>
-                <Text style={styles.heroLabel}>TOTAL DUES</Text>
+                <Text style={styles.heroLabel}>PENDING DUES</Text>
                 <Clock size={14} color={Colors.error || '#FF3333'} strokeWidth={2.5} />
              </View>
              <Text style={[styles.heroValue, { color: Colors.white }]}>{formatINR(summary?.totalPendingAmount || 0)}</Text>
              <TouchableOpacity style={styles.dueAction} onPress={() => router.push({ pathname: '/invoices', params: { status: 'unpaid' } })}>
-                <Text style={styles.dueActionText}>VIEW CUSTOMERS</Text>
+                <Text style={styles.dueActionText}>COLLECT NOW</Text>
              </TouchableOpacity>
            </AppCard>
         </View>
 
-        <View style={styles.quickActions}>
-          <TouchableOpacity 
-            style={styles.actionItem} 
-            activeOpacity={0.8}
-            onPress={() => router.push('/(app)/invoices')}
-          >
-            <AppCard style={styles.actionCard}>
-               <View style={styles.iconCircle}>
-                 <Layers size={24} color={Colors.primary} strokeWidth={2.5} />
-               </View>
-               <Text style={styles.actionTitle}>ALL BILLS</Text>
-            </AppCard>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionItem} 
-            activeOpacity={0.8}
-            onPress={() => router.push('/(app)/dealers')}
-          >
-            <AppCard style={styles.actionCard}>
-               <View style={styles.iconCircle}>
-                 <Users size={24} color={Colors.primary} strokeWidth={2.5} />
-               </View>
-               <Text style={styles.actionTitle}>CUSTOMERS</Text>
-            </AppCard>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.sectionHeader}>
           <View style={styles.row}>
-            <Text style={styles.sectionTitle}>LATEST TRANSACTIONS</Text>
+            <Text style={styles.sectionTitle}>RECENT BILLS</Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/(app)/invoices')}>
-             <Text style={styles.viewMore}>VIEW ALL</Text>
+             <Text style={styles.viewMore}>VIEW ALL HISTORY</Text>
           </TouchableOpacity>
         </View>
         
         <View style={styles.listContainer}>
           {(recentInvoices?.length || 0) === 0 ? (
              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyText}>NO SALES RECORDED TODAY</Text>
+                <Text style={styles.emptyText}>NO SALES RECORDED YET</Text>
              </View>
           ) : (
             recentInvoices?.map((inv) => (
@@ -167,32 +171,22 @@ const styles = StyleSheet.create({
   heroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   heroLabel: { color: Colors.textMuted, fontSize: 8, fontWeight: '800', letterSpacing: 1 },
   heroValue: { color: Colors.white, fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  heroValue: { color: Colors.white, fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
   trendRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12 },
-  trendText: { color: Colors.success || '#4ADE80', fontSize: 9, fontWeight: '700' },
+  trendText: { fontSize: 9, fontWeight: '700' },
   dueAction: { marginTop: 12 },
   dueActionText: { color: Colors.primary, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  quickActions: { flexDirection: 'row', gap: 16, marginBottom: 36 },
-  actionItem: { flex: 1 },
-  actionCard: { 
-    backgroundColor: Colors.surface, 
-    alignItems: 'center', 
-    paddingVertical: 24, 
-    borderRadius: 22, 
-    borderWidth: 1.5, 
-    borderColor: Colors.border,
+  quickActionsGrid: { flexDirection: 'row', gap: 16, marginBottom: 28 },
+  primaryAction: { 
+    flex: 1, 
+    padding: 20, 
+    borderRadius: 24, 
+    justifyContent: 'space-between',
+    minHeight: 110,
   },
-  iconCircle: { 
-    width: 56, 
-    height: 56, 
-    borderRadius: 28, 
-    backgroundColor: Colors.black, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  actionTitle: { fontSize: 10, fontWeight: '800', color: Colors.white, letterSpacing: 1 },
+  actionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  actionTag: { fontSize: 8, fontWeight: '900', color: Colors.black, backgroundColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  primaryActionTitle: { fontSize: 13, fontWeight: '900', color: Colors.black, marginTop: 10, letterSpacing: 0.5 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { fontSize: 12, fontWeight: '800', color: Colors.textSecondary, letterSpacing: 1 },

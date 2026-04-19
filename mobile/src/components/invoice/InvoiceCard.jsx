@@ -25,17 +25,17 @@ export default function InvoiceCard({ invoice, onPress }) {
       <AppCard style={styles.card} padded={false}>
         <View style={styles.header}>
           <View style={styles.billBadge}>
-            <Text style={styles.billNo}>#{invoice.invoiceId.split('-').pop().toUpperCase()}</Text>
+            <Text style={styles.billNo}>#{ (invoice.invoiceId || 'INV-000').split('-').pop()?.toUpperCase() }</Text>
           </View>
           <View style={[styles.statusIndicator, { backgroundColor: statusColor }]}>
-             <Text style={styles.statusText}>{invoice.paymentStatus.toUpperCase()}</Text>
+             <Text style={styles.statusText}>{ (invoice.paymentStatus || 'unknown').toUpperCase() }</Text>
           </View>
         </View>
 
         <View style={styles.body}>
           <View style={styles.mainInfo}>
-             <Text style={styles.customerName} numberOfLines={1}>{invoice.dealerName?.toUpperCase()}</Text>
-             <Text style={styles.shopName} numberOfLines={1}>{invoice.dealerShop?.toUpperCase()}</Text>
+             <Text style={styles.customerName} numberOfLines={1}>{ (invoice.dealerName || invoice.dealer?.name || 'Customer').toUpperCase() }</Text>
+             <Text style={styles.shopName} numberOfLines={1}>{ (invoice.dealerShop || invoice.dealer?.shopName || 'No Shop').toUpperCase() }</Text>
           </View>
           <View style={styles.amountInfo}>
              <Text style={styles.amountLabel}>AMOUNT</Text>
