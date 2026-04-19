@@ -10,28 +10,28 @@
 
 ---
 
-## 🏗️ Core Workflow Architecture
+## Core Workflow Architecture
 
 The seamless journey from business intelligence to financial clearance, optimized for maximum efficiency.
 
-### 💼 Executive Sales Cycle (Horizontal Flow)
+### Executive Sales Cycle (Horizontal Flow)
 
 ```mermaid
 graph LR
-    A[🎛️ Dashboard] --> B[📝 Create Invoice]
-    B --> C[📦 SKU Selection]
-    C --> D[⚙️ Smart GST]
-    D --> E[📄 PDF Engine]
-    E --> F[📲 WhatsApp Push]
-    F --> G[💰 Payment Tracking]
-    G --> H[📊 Growth Analytics]
+    A[Dashboard] --> B[Create Invoice]
+    B --> C[SKU Selection]
+    C --> D[Smart GST]
+    D --> E[PDF Engine]
+    E --> F[WhatsApp Push]
+    F --> G[Payment Tracking]
+    G --> H[Growth Analytics]
 
     style A fill:#080808,stroke:#FF6B00,stroke-width:2px,color:#fff
     style H fill:#080808,stroke:#FF6B00,stroke-width:2px,color:#fff
     style E fill:#000,stroke:#666,stroke-width:1px,color:#fff
 ```
 
-### 🧠 AI Intelligence Layer
+### AI Intelligence Layer
 
 ```mermaid
 graph LR
@@ -46,27 +46,27 @@ graph LR
 
 ---
 
-## ✨ Premium Feature Ecosystem
+## Premium Feature Ecosystem
 
-### 💎 The Executive Aesthetic
+### The Executive Aesthetic
 PakkaBill uses a bespoke obsidian-themed design system optimized for high-impact visibility:
 *   **Primary Accent**: Electric Orange (`#FF6B00`) for high-reach actions and trend indicators.
 *   **Surfaces**: Obsidian Slate (`#080808`) and Pure Carbon (`#000000`) for peak data contrast.
 *   **Typography**: Industrial Sans-Serif for maximum readability in high-pressure environments.
 
-### 🚀 High-Fidelity Document Engine
+### High-Fidelity Document Engine
 Professional document generation starting from sequential bill numbering.
 *   **Elite PDF Design**: Corporate-grade layouts with structured client data and dynamic financial grids.
 *   **Smart WhatsApp Share**: Dual-action sharing that sends the PDF and auto-copies professional captions to the clipboard for "Paste & Send" efficiency.
 
-### 📈 Predictive Intelligence & Dashboards
+### Predictive Intelligence & Dashboards
 *   **Real-time Revenue Growth**: Track MTD performance with visual delta indicators.
 *   **Pending Amount Heatmaps**: Instantly identify top-debtor accounts and high-risk receivables.
 *   **Sales Velocity Tracking**: Understand which SKUs are driving your business growth.
 
 ---
 
-## 🛠️ Technical Infrastructure
+## Technical Infrastructure
 
 | Layer | Technology |
 | :--- | :--- |
@@ -79,9 +79,9 @@ Professional document generation starting from sequential bill numbering.
 
 ---
 
-## 🚦 Quick Deployment
+## Quick Deployment
 
-### 🔌 1. Backend Integration
+### 1. Backend Integration
 ```bash
 # Navigate to core
 cd backend
@@ -93,7 +93,7 @@ npm install
 npm run dev
 ```
 
-### 📱 2. Mobile Console
+### 2. Mobile Console
 ```bash
 # Navigate to application
 cd mobile
