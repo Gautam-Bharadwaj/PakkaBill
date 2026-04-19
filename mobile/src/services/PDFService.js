@@ -57,22 +57,22 @@ export const generateInvoicePDF = async (invoice, businessInfo = {}) => {
         <div class="invoice-box">
           <div class="bill-to">
             <div class="bill-to-title">Bill To</div>
-            <div style="font-size: 16px; font-weight: bold;">${invoice.dealerName || 'Walk-in Customer'}</div>
-            <div class="subtitle">${invoice.dealerShop || ''}</div>
-            <div class="subtitle">Phone: ${invoice.dealerPhone || ''}</div>
+            <div style="font-size: 16px; font-weight: bold;">${invoice?.dealerName || 'Walk-in Customer'}</div>
+            <div class="subtitle">${invoice?.dealerShop || ''}</div>
+            <div class="subtitle">Phone: ${invoice?.dealerPhone || ''}</div>
           </div>
           <div class="invoice-meta">
             <div class="meta-row">
               <span class="meta-label">Invoice No:</span>
-              <span class="meta-value">#${invoice.invoiceId.split('-').pop()}</span>
+              <span class="meta-value">#${invoice?.invoiceId ? invoice.invoiceId.split('-').pop() : 'N/A'}</span>
             </div>
             <div class="meta-row">
               <span class="meta-label">Date:</span>
-              <span class="meta-value">${formatDate(invoice.createdAt, 'dd MMM yyyy')}</span>
+              <span class="meta-value">${formatDate(invoice?.createdAt || Date.now(), 'dd MMM yyyy')}</span>
             </div>
             <div class="meta-row">
               <span class="meta-label">Status:</span>
-              <span class="meta-value" style="color: ${invoice.paymentStatus === 'paid' ? '#059669' : '#DC2626'}">${invoice.paymentStatus.toUpperCase()}</span>
+              <span class="meta-value" style="color: ${invoice?.paymentStatus === 'paid' ? '#059669' : '#DC2626'}">${(invoice?.paymentStatus || 'pending').toUpperCase()}</span>
             </div>
           </div>
         </div>
@@ -87,12 +87,12 @@ export const generateInvoicePDF = async (invoice, businessInfo = {}) => {
             </tr>
           </thead>
           <tbody>
-            ${invoice.lineItems.map(item => `
+            ${(invoice?.lineItems || []).map(item => `
               <tr>
                 <td>${item.productName}</td>
                 <td style="text-align: center;">${item.quantity}</td>
-                <td style="text-align: right;">${formatINR(item.price)}</td>
-                <td style="text-align: right; font-weight: bold;">${formatINR(item.lineTotal)}</td>
+                <td style="text-align: right;">${formatINR(item.price || item.unitPrice || 0)}</td>
+                <td style="text-align: right; font-weight: bold;">${formatINR(item.lineTotal || 0)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -102,9 +102,9 @@ export const generateInvoicePDF = async (invoice, businessInfo = {}) => {
           <div class="totals-table">
             <div class="total-row">
               <span class="total-label">Subtotal</span>
-              <span class="total-value">${formatINR(invoice.subtotal)}</span>
+              <span class="total-value">${formatINR(invoice?.subtotal || 0)}</span>
             </div>
-            ${invoice.gstAmount > 0 ? `
+            ${(invoice?.gstAmount || 0) > 0 ? `
               <div class="total-row">
                 <span class="total-label">CGST (9%)</span>
                 <span class="total-value">${formatINR(invoice.gstAmount / 2)}</span>
@@ -116,7 +116,7 @@ export const generateInvoicePDF = async (invoice, businessInfo = {}) => {
             ` : ''}
             <div class="total-row grand-total-row">
               <span class="grand-total-label">Total</span>
-              <span class="grand-total-value">${formatINR(invoice.totalAmount)}</span>
+              <span class="grand-total-value">${formatINR(invoice?.totalAmount || 0)}</span>
             </div>
           </div>
         </div>
@@ -124,7 +124,7 @@ export const generateInvoicePDF = async (invoice, businessInfo = {}) => {
         <div class="footer">
           <div class="thanks">Thank you for your business!</div>
           <div class="footer-sub">This is a computer generated invoice and does not require a physical signature.</div>
-          <div class="footer-sub" style="margin-top: 10px; font-weight: bold;">Generatred via PakkaBill</div>
+          <div class="footer-sub" style="margin-top: 10px; font-weight: bold;">Generated via PakkaBill</div>
         </div>
       </body>
     </html>
@@ -143,10 +143,11 @@ export const generateInvoicePDF = async (invoice, businessInfo = {}) => {
 export const shareInvoicePDF = async (invoice, businessInfo) => {
     try {
         const uri = await generateInvoicePDF(invoice, businessInfo);
+        const invShortId = invoice?.invoiceId ? invoice.invoiceId.split('-').pop() : 'BILL';
         if (await Sharing.isAvailableAsync()) {
             await Sharing.shareAsync(uri, {
                 mimeType: 'application/pdf',
-                dialogTitle: `Share Invoice #${invoice.invoiceId.split('-').pop()}`,
+                dialogTitle: `Share Invoice #${invShortId}`,
                 UTI: 'com.adobe.pdf',
             });
         }
