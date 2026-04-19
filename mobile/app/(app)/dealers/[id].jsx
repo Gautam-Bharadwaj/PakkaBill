@@ -41,7 +41,7 @@ export default function DealerProfileScreen() {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
-      <AppHeader title="ACCOUNT PROFILE" showBack rightAction={RightAction} />
+      <AppHeader title="CUSTOMER PROFILE" showBack rightAction={RightAction} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Hero Section */}
@@ -70,15 +70,15 @@ export default function DealerProfileScreen() {
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>
              <Text style={styles.statVal}>{dealer.invoiceCount || 0}</Text>
-             <Text style={styles.statLabel}>BILLS</Text>
+             <Text style={styles.statLabel}>TOTAL BILLS</Text>
           </View>
           <View style={styles.statBox}>
              <Text style={[styles.statVal, { color: Colors.primary }]}>{formatINR(dealer.pendingAmount || 0)}</Text>
-             <Text style={styles.statLabel}>PENDING</Text>
+             <Text style={styles.statLabel}>PENDING DUES</Text>
           </View>
           <View style={styles.statBox}>
              <Text style={styles.statVal}>{formatINR(dealer.totalPurchased || 0)}</Text>
-             <Text style={styles.statLabel}>PURCHASED</Text>
+             <Text style={styles.statLabel}>TOTAL SALES</Text>
           </View>
         </View>
 
@@ -90,16 +90,32 @@ export default function DealerProfileScreen() {
             style={styles.actionBtn}
           />
           <AppButton
-            title="REMIND"
+            title="COLLECT PAYMENT"
             variant="success"
+            onPress={() => {
+              if (invoices.length > 0) {
+                // Point to the latest invoice for payment recording
+                router.push(`/(app)/payments/${invoices[0]._id}`);
+              } else {
+                showMessage({ message: 'No bills found for this customer', type: 'warning' });
+              }
+            }}
+            style={[styles.actionBtn, { flex: 1.5 }]}
+          />
+        </View>
+
+        <View style={styles.secondaryActions}>
+          <AppButton
+            title="SEND REMINDER"
+            variant="secondary"
             onPress={() => openWhatsApp(dealer.phone, buildReminderMessage(dealer, dealer.pendingAmount))}
-            style={styles.actionBtn}
+            style={styles.secBtn}
           />
           <AppButton
             title="CALL"
-            variant="secondary"
-            onPress={() => Linking.openURL(`tel:${dealer.phone}`).catch(() => showMessage({ message: 'Dialer unavailable in simulator', type: 'info' }))}
-            style={styles.actionBtn}
+            variant="ghost"
+            onPress={() => Linking.openURL(`tel:${dealer.phone}`).catch(() => showMessage({ message: 'Dialer unavailable', type: 'info' }))}
+            style={styles.secBtn}
           />
         </View>
 
@@ -173,7 +189,9 @@ const styles = StyleSheet.create({
   },
   statVal: { fontSize: 15, fontWeight: '900', color: Colors.white },
   statLabel: { fontSize: 8, fontWeight: '800', color: Colors.textMuted, marginTop: 4, letterSpacing: 1 },
-  actionGrid: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 32 },
+  actionGrid: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 12 },
   actionBtn: { flex: 1 },
+  secondaryActions: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 32 },
+  secBtn: { flex: 1 },
   historySection: { paddingHorizontal: 20 },
 });
