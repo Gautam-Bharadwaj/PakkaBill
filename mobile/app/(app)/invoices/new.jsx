@@ -27,13 +27,14 @@ export default function NewInvoiceScreen() {
   const builder = useInvoiceBuilder();
   const [showPicker, setShowPicker] = useState(false);
   const [showDealerPicker, setShowDealerPicker] = useState(false);
+  const [batchDealers, setBatchDealers] = useState([]);
+  const [isBulkMode, setIsBulkMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (dealerId) {
        fetchDealer(dealerId).then((d) => builder.setDealer(d));
     } else if (!reorderId && !editId) {
-       // If no params, and not a reorder/edit, ensure we start fresh
        builder.reset();
     }
     
@@ -47,38 +48,63 @@ export default function NewInvoiceScreen() {
   }, [dealerId, reorderId, editId]);
 
   const handleCreate = async () => {
-    if (!builder.dealer) {
-        showMessage({ message: 'Error: Please pick a Customer first (Step 1)', type: 'warning' });
+    const activeDealers = isBulkMode ? batchDealers : (builder.dealer ? [builder.dealer] : []);
+    
+    if (activeDealers.length === 0) {
+        showMessage({ message: 'Error: Please pick at least 1 Customer (Step 1)', type: 'warning' });
         return;
     }
     if (builder.lineItems.length === 0) {
         showMessage({ message: 'Error: Please add at least 1 Item (Step 2)', type: 'warning' });
         return;
     }
+
     setIsSubmitting(true);
     try {
-      let inv;
       if (editId) {
-        inv = await updateInvoice(editId, builder.buildPayload());
-        showMessage({ message: 'Success! Bill Updated Successfully', type: 'success' });
+        const inv = await updateInvoice(editId, builder.buildPayload());
+        showMessage({ message: 'Bill Updated', type: 'success' });
+        router.replace(`/(app)/invoices/${inv._id}`);
       } else {
-        inv = await createInvoice(builder.buildPayload());
-        showMessage({ message: 'Success! Bill Created Successfully', type: 'success' });
+        // ── BULK CREATION LOGIC ──
+        let lastInv;
+        for (const d of activeDealers) {
+           // Temporarily set dealer for payload building
+           builder.setDealer(d);
+           lastInv = await createInvoice(builder.buildPayload());
+        }
+
+        if (activeDealers.length > 1) {
+          showMessage({ message: `${activeDealers.length} Bills Created Successfully!`, type: 'success' });
+          router.replace('/(app)/invoices');
+        } else {
+          showMessage({ message: 'Bill Created Successfully', type: 'success' });
+          router.replace(`/(app)/invoices/${lastInv._id}`);
+        }
       }
       builder.reset();
-      router.replace(`/(app)/invoices/${inv._id}`);
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Bill Generation Failed';
-      showMessage({ message: `Error: ${msg}`, type: 'danger', icon: 'danger' });
+      const msg = err.response?.data?.message || err.message || 'Action Failed';
+      showMessage({ message: `Error: ${msg}`, type: 'danger' });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const onDealerSelect = (data) => {
+    if (isBulkMode) {
+      setBatchDealers(data);
+      builder.setDealer(data[0]); // Preview first
+    } else {
+      builder.setDealer(data);
+      setBatchDealers([]);
     }
   };
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.black} />
-      <AppHeader title={editId ? "EDIT BILL" : "NEW BILL (EASY)"} showBack />
+      <AppHeader title={editId ? "EDIT BILL" : "NEW BILL"} showBack />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -86,14 +112,34 @@ export default function NewInvoiceScreen() {
           {/* STEP 1: CUSTOMER */}
           <View style={styles.stepHeader}>
             <View style={styles.stepCircle}><Text style={styles.stepNum}>1</Text></View>
-            <Text style={styles.stepTitle}>CHOOSE CUSTOMER</Text>
+            <View style={{ flex: 1 }}>
+               <Text style={styles.stepTitle}>CHOOSE CUSTOMER(S)</Text>
+               <TouchableOpacity onPress={() => { setIsBulkMode(!isBulkMode); builder.setDealer(null); setBatchDealers([]); }}>
+                  <Text style={[styles.bulkToggle, isBulkMode && { color: Colors.primary }]}>
+                    {isBulkMode ? '✓ BULK MODE ACTIVE (MULTIPLE)' : '+ ENABLE BULK BILLING?'}
+                  </Text>
+               </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.miniAddBtn} onPress={() => router.push('/(app)/dealers/add')}>
+               <PlusCircle size={14} color={Colors.black} strokeWidth={2.5} />
+               <Text style={styles.miniAddText}>NEW</Text>
+            </TouchableOpacity>
           </View>
           
           <TouchableOpacity 
-            style={[styles.bigSelector, !!builder.dealer && styles.selectorActive]} 
+            style={[styles.bigSelector, (builder.dealer || batchDealers.length > 0) && styles.selectorActive]} 
             onPress={() => setShowDealerPicker(true)}
           >
-            {builder.dealer ? (
+            {isBulkMode && batchDealers.length > 0 ? (
+               <View style={styles.selectionInfo}>
+                 <UserCircle size={24} color={Colors.primary} strokeWidth={2} />
+                 <View style={styles.textStack}>
+                   <Text style={styles.selectionMain}>{batchDealers.length} CUSTOMERS SELECTED</Text>
+                   <Text style={styles.selectionSub}>{batchDealers.map(d => d.name).slice(0, 2).join(', ')}...</Text>
+                 </View>
+                 <RefreshCcw size={18} color={Colors.textMuted} />
+               </View>
+            ) : builder.dealer ? (
               <View style={styles.selectionInfo}>
                 <UserCircle size={24} color={Colors.primary} strokeWidth={2} />
                 <View style={styles.textStack}>
@@ -251,7 +297,7 @@ export default function NewInvoiceScreen() {
       </KeyboardAvoidingView>
 
       <ProductPickerModal visible={showPicker} onClose={() => setShowPicker(false)} onSelect={builder.addProduct} />
-      <DealerPickerModal visible={showDealerPicker} onClose={() => setShowDealerPicker(false)} onSelect={(d) => builder.setDealer(d)} />
+      <DealerPickerModal visible={showDealerPicker} onClose={() => setShowDealerPicker(false)} onSelect={onDealerSelect} multiSelect={isBulkMode} />
     </View>
   );
 }
@@ -264,6 +310,9 @@ const styles = StyleSheet.create({
   stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   stepNum: { fontSize: 14, fontWeight: '900', color: Colors.black },
   stepTitle: { fontSize: 12, fontWeight: '800', color: Colors.white, letterSpacing: 1.5 },
+  bulkToggle: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, marginTop: 4, letterSpacing: 0.5 },
+  miniAddBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 6 },
+  miniAddText: { fontSize: 10, fontWeight: '900', color: Colors.black, letterSpacing: 0.5 },
   bigSelector: { 
     backgroundColor: Colors.surface, 
     borderRadius: 20, 
