@@ -16,18 +16,18 @@ const useDashboardStore = create((set) => ({
   fetchAll: async () => {
     set({ isLoading: true, error: null });
     try {
-      const [summaryRes, chartRes, productsRes, dealersRes, invoicesRes] = await Promise.all([
-        dashboardApi.getDashboardSummary(),
-        dashboardApi.getRevenueChart(30),
-        dashboardApi.getTopProducts(5),
-        dashboardApi.getPendingDealers(5),
-        getInvoices({ limit: 5 }), // Audit: Fetch real recent activity
+      const [feedRes, invoicesRes] = await Promise.all([
+        dashboardApi.getDashboardFeed(),
+        getInvoices({ limit: 5 }), 
       ]);
+
+      const { summary, chart, products, dealers } = feedRes.data.data;
+
       set({
-        summary: summaryRes.data.data,
-        revenueChart: chartRes.data.data,
-        topProducts: productsRes.data.data,
-        pendingDealers: dealersRes.data.data,
+        summary,
+        revenueChart: chart || [],
+        topProducts: products || [],
+        pendingDealers: dealers || [],
         recentInvoices: invoicesRes.data.data || [],
         isLoading: false,
       });

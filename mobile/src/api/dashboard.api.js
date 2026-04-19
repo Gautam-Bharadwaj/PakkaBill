@@ -1,6 +1,7 @@
 import client from './client';
 import { ENDPOINTS } from '../constants/api';
 
+export const getDashboardFeed = () => client.get('/dashboard/feed');
 export const getDashboardSummary = () => client.get(ENDPOINTS.DASHBOARD_SUMMARY);
 export const getRevenueChart = (days = 30) => client.get(ENDPOINTS.DASHBOARD_CHART, { params: { days } });
 export const getTopProducts = (limit = 5) => client.get(ENDPOINTS.DASHBOARD_TOP_PRODUCTS, { params: { limit } });
