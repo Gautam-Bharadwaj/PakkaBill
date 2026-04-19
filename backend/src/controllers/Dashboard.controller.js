@@ -21,6 +21,7 @@ class DashboardController {
         totalRevenueMTD: monthly.totalRevenue,
         totalProfitMTD: monthly.totalProfit,
         invoiceCountMTD: monthly.invoiceCount,
+        revenueGrowth: monthly.revenueGrowth,
         totalPendingAmount: pendingAmount[0]?.total || 0,
         activeDealers,
       }, 'Dashboard summary fetched');
@@ -48,6 +49,40 @@ class DashboardController {
       const { limit = 10 } = req.query;
       const dealers = await dealerService.getPendingDealers(Number(limit), req.user._id);
       ApiResponse.success(res, dealers, 'Pending dealers fetched');
+    } catch (err) { next(err); }
+  }
+
+  async getFeed(req, res, next) {
+    try {
+      const [summary, chart, products, dealers] = await Promise.all([
+        invoiceService.getMonthlySummary(req.user._id),
+        invoiceService.getRevenueChart(30, req.user._id),
+        productService.getTopProducts(5, req.user._id),
+        dealerService.getPendingDealers(5, req.user._id),
+      ]);
+
+      // Calculate missing bits for summary (consolidating from getSummary)
+      const [pendingAmount, activeDealers] = await Promise.all([
+        Dealer.aggregate([
+          { $match: { owner: req.user._id } },
+          { $group: { _id: null, total: { $sum: '$pendingAmount' } } }
+        ]),
+        Dealer.countDocuments({ owner: req.user._id, status: 'active' }),
+      ]);
+
+      ApiResponse.success(res, {
+        summary: {
+           totalRevenueMTD: summary.totalRevenue,
+           totalProfitMTD: summary.totalProfit,
+           invoiceCountMTD: summary.invoiceCount,
+           revenueGrowth: summary.revenueGrowth,
+           totalPendingAmount: pendingAmount[0]?.total || 0,
+           activeDealers,
+        },
+        chart,
+        products,
+        dealers
+      }, 'Industrial Dashboard Feed fetched');
     } catch (err) { next(err); }
   }
 

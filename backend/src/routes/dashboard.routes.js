@@ -5,6 +5,7 @@ const authMiddleware = require('../middleware/auth.middleware');
 const router = Router();
 router.use(authMiddleware);
 
+router.get('/feed', dashboardController.getFeed.bind(dashboardController));
 router.get('/summary', dashboardController.getSummary.bind(dashboardController));
 router.get('/revenue-chart', dashboardController.getRevenueChart.bind(dashboardController));
 router.get('/top-products', dashboardController.getTopProducts.bind(dashboardController));
